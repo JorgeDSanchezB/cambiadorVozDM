@@ -1,0 +1,15 @@
+{
+  "_leeme": "Catálogo único de parámetros DSP. La Fábrica de cadenas y el Editor de Voces leen SUS MISMOS rangos de aquí (cero hardcoding).",
+  "parametros": {
+    "pitch_semitonos":  { "min": -12.0, "max": 12.0, "paso": 0.5,  "etiqueta": "Pitch (semitonos)" },
+    "formant_shift":    { "min": 0.5,   "max": 2.0,  "paso": 0.01, "etiqueta": "Formantes (factor)" },
+    "gain_db":          { "min": -24.0, "max": 24.0, "paso": 0.5,  "etiqueta": "Ganancia (dB)" },
+    "distortion_drive": { "min": 0.0,   "max": 1.0,  "paso": 0.01, "etiqueta": "Distorsión (drive)" },
+    "ring_mod_freq":    { "min": 0.0,   "max": 800.0,"paso": 1.0,  "etiqueta": "Ring mod (Hz, 0 = off)" },
+    "eq_low_db":        { "min": -15.0, "max": 15.0, "paso": 0.5,  "etiqueta": "EQ graves 120 Hz (dB)" },
+    "eq_mid_db":        { "min": -15.0, "max": 15.0, "paso": 0.5,  "etiqueta": "EQ medios 1.2 kHz (dB)" },
+    "eq_high_db":       { "min": -15.0, "max": 15.0, "paso": 0.5,  "etiqueta": "EQ agudos 6 kHz (dB)" },
+    "reverb_room_size": { "min": 0.0,   "max": 1.0,  "paso": 0.01, "etiqueta": "Reverb · tamaño sala" },
+    "reverb_damping":   { "min": 0.0,   "max": 1.0,  "paso": 0.01, "etiqueta": "Reverb · amortiguación" }
+  }
+}

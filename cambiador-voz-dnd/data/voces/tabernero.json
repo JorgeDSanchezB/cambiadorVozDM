@@ -1,0 +1,19 @@
+{
+  "id": "a1b2c3d4-3333-4a2b-8c3d-000000000003",
+  "nombre": "Tabernero",
+  "tipo": "DSP",
+  "icono": "🍺",
+  "color": "#8a6d3b",
+  "parametros_dsp": {
+    "pitch_semitonos": -1.5,
+    "formant_shift": 1.05,
+    "gain_db": 0.5,
+    "distortion_drive": 0.05,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 1.5,
+    "eq_mid_db": 1.0,
+    "eq_high_db": -1.5,
+    "reverb_room_size": 0.22,
+    "reverb_damping": 0.4
+  }
+}

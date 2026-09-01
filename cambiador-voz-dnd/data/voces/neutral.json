@@ -1,0 +1,19 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "nombre": "Neutral",
+  "tipo": "DSP",
+  "icono": "🎙️",
+  "color": "#6b7280",
+  "parametros_dsp": {
+    "pitch_semitonos": 0.0,
+    "formant_shift": 1.0,
+    "gain_db": 0.0,
+    "distortion_drive": 0.0,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 0.0,
+    "eq_mid_db": 0.0,
+    "eq_high_db": 0.0,
+    "reverb_room_size": 0.0,
+    "reverb_damping": 0.5
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "audio": {
+    "sample_rate": 48000,
+    "buffer_size": 256,
+    "dispositivo_entrada": null,
+    "dispositivo_salida": null,
+    "canales_salida": 2
+  },
+  "grabacion": {
+    "carpeta_destino": "./grabaciones",
+    "formato": "mp3",
+    "bitrate_kbps": 192,
+    "patron_nombre": "voz_{fecha}_{hora}"
+  },
+  "atajos": {
+    "F1": "a1b2c3d4-1111-4a2b-8c3d-000000000001",
+    "F2": "a1b2c3d4-2222-4a2b-8c3d-000000000002",
+    "F3": "a1b2c3d4-3333-4a2b-8c3d-000000000003",
+    "F12": "00000000-0000-0000-0000-000000000000"
+  },
+  "motor": {
+    "modo": "DSP",
+    "permitir_ia": true,
+    "ruta_plugin_rvc": "./modelos/plugin_rvc.py"
+  },
+  "ui": {
+    "vista_botones": true,
+    "columnas_botones": 4
+  }
+}

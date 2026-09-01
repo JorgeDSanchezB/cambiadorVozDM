@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Datos generados
+logs/
+grabaciones/*.mp3
+grabaciones/*.wav
+
+# Modelos IA (pesados, van aparte)
+modelos/*.pth
+modelos/*.index

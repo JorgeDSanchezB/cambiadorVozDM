@@ -1,0 +1,19 @@
+{
+  "id": "a1b2c3d4-2222-4a2b-8c3d-000000000002",
+  "nombre": "Dragón Ancestral",
+  "tipo": "DSP",
+  "icono": "🐉",
+  "color": "#7a3b2e",
+  "parametros_dsp": {
+    "pitch_semitonos": -7.0,
+    "formant_shift": 0.72,
+    "gain_db": 1.0,
+    "distortion_drive": 0.22,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 4.5,
+    "eq_mid_db": -1.0,
+    "eq_high_db": -2.0,
+    "reverb_room_size": 0.45,
+    "reverb_damping": 0.35
+  }
+}

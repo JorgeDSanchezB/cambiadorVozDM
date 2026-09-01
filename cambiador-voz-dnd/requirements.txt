@@ -1,0 +1,17 @@
+# Cambiador de Voz en Tiempo Real para DM de D&D
+# Python 3.10+ (probado con 3.10–3.12)
+numpy>=1.24,<3.0
+scipy>=1.10,<2.0
+sounddevice>=0.4.6
+PyQt6>=6.6
+pydub>=0.25.1
+
+# --- OPCIONAL: Modo Avanzado (IA / clonación de voz RVC) --------------------
+# Instala PyTorch con CUDA (elige tu versión en https://pytorch.org):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# torch>=2.1
+#
+# Requisito del sistema: ffmpeg en el PATH para exportar MP3.
+#   winget install ffmpeg      (Windows 10/11)
+#   # o: choco install ffmpeg
+# Sin ffmpeg la app funciona igual, pero guarda las sesiones en WAV.
