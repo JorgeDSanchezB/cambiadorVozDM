@@ -1,0 +1,16 @@
+# Cambiador de Voz en Tiempo Real para DM de D&D — dependencias
+# Python 3.10+ (probado con 3.10, 3.11 y 3.12)
+
+PyQt6>=6.6,<7
+sounddevice>=0.4.6
+numpy>=1.24
+scipy>=1.10
+pydub>=0.25.1
+
+# ---------- OPCIONAL: Modo IA (clonación de voz con RVC) ----------
+# Requiere GPU NVIDIA con CUDA. Instala por tu cuenta:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+#   pip install rvc            (o el fork de RVC que prefieras)
+# y conecta el adaptador en app/engine/modulo_ia.py (ver README § Modo IA).
+# torch>=2.1
+# rvc

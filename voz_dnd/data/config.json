@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "audio": {
+    "sample_rate": 48000,
+    "buffer_size": 256,
+    "dispositivo_entrada": null,
+    "dispositivo_salida": null
+  },
+  "grabacion": {
+    "carpeta_destino": "",
+    "formato": "mp3",
+    "bitrate_kbps": 192,
+    "patron_nombre": "voz_{fecha}_{hora}"
+  },
+  "motor": {
+    "modo": "DSP",
+    "permitir_ia": true,
+    "tam_grano_pitch": 512,
+    "ffmpeg_ruta": ""
+  },
+  "ui": {
+    "vista_botones": true
+  },
+  "atajos": {
+    "F1": "22222222-2222-4222-8222-222222222222",
+    "F2": "33333333-3333-4333-8333-333333333333",
+    "F3": "44444444-4444-4444-8444-444444444444"
+  }
+}
