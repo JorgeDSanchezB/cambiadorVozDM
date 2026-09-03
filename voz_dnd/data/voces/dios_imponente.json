@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555510",
+  "nombre": "Dios Imponente",
+  "tipo": "DSP",
+  "icono": "⚡",
+  "color": "#1a1a4a",
+  "atajo": "Shift+F1",
+  "parametros_dsp": {
+    "pitch_semitonos": -7.0,
+    "formant_shift": 1.45,
+    "reverb_room_size": 0.60,
+    "reverb_damping": 0.25,
+    "distortion_drive": 0.05,
+    "gain_db": 4.0,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 6.0,
+    "eq_mid_db": 0.0,
+    "eq_high_db": -2.0
+  }
+}

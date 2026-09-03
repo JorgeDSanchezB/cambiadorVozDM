@@ -154,10 +154,16 @@ class VentanaPrincipal(QMainWindow):
             "background:#8f2d2d;color:white;font-weight:700;padding:6px 18px;"
             "border-radius:8px;")
         self.boton_rec.clicked.connect(self._alternar_grabacion)
+        self.boton_pausa = QPushButton("⏸ Pausa mic")
+        self.boton_pausa.setStyleSheet(
+            "background:#3a5a8a;color:white;font-weight:700;padding:6px 18px;"
+            "border-radius:8px;")
+        self.boton_pausa.clicked.connect(self._alternar_pausa)
         barra.addWidget(titulo)
         barra.addStretch(1)
         barra.addWidget(QLabel("Nivel:"))
         barra.addWidget(self.medidor)
+        barra.addWidget(self.boton_pausa)
         barra.addWidget(self.check_monitoreo)
         barra.addWidget(self.boton_rec)
         barra.addWidget(self.etiqueta_reloj)
@@ -380,6 +386,22 @@ class VentanaPrincipal(QMainWindow):
 
     def _cambiar_monitoreo(self, activo: bool) -> None:
         self.motor.monitoreo = activo
+
+    def _alternar_pausa(self) -> None:
+        if self.motor.pausado:
+            self.motor.reanudar()
+            self.boton_pausa.setText("⏸ Pausa mic")
+            self.boton_pausa.setStyleSheet(
+                "background:#3a5a8a;color:white;font-weight:700;padding:6px 18px;"
+                "border-radius:8px;")
+            self.banner.mostrar_info("Micrófono reanudado.")
+        else:
+            self.motor.pausar()
+            self.boton_pausa.setText("▶ Reanudar mic")
+            self.boton_pausa.setStyleSheet(
+                "background:#5a5a2a;color:white;font-weight:700;padding:6px 18px;"
+                "border-radius:8px;")
+            self.banner.mostrar_info("Micrófono en pausa.")
 
     def _refrescar_info_motor(self) -> None:
         modo = ("IA" if isinstance(self.motor.procesador_actual, ProcesadorIA)

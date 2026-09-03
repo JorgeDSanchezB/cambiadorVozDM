@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555504",
+  "nombre": "Villano Salvaje",
+  "tipo": "DSP",
+  "icono": "💀",
+  "color": "#5a1a1a",
+  "atajo": "F7",
+  "parametros_dsp": {
+    "pitch_semitonos": -4.0,
+    "formant_shift": 1.25,
+    "reverb_room_size": 0.18,
+    "reverb_damping": 0.3,
+    "distortion_drive": 0.35,
+    "gain_db": 3.0,
+    "ring_mod_freq": 45.0,
+    "eq_low_db": 4.0,
+    "eq_mid_db": -2.0,
+    "eq_high_db": -1.0
+  }
+}

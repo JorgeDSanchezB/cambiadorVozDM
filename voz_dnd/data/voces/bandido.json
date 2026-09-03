@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555505",
+  "nombre": "Bandido",
+  "tipo": "DSP",
+  "icono": "🗡️",
+  "color": "#6b4a2a",
+  "atajo": "F8",
+  "parametros_dsp": {
+    "pitch_semitonos": -2.5,
+    "formant_shift": 1.10,
+    "reverb_room_size": 0.10,
+    "reverb_damping": 0.5,
+    "distortion_drive": 0.12,
+    "gain_db": 1.5,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 3.0,
+    "eq_mid_db": 0.0,
+    "eq_high_db": -1.0
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555506",
+  "nombre": "Bardo Elocuente",
+  "tipo": "DSP",
+  "icono": "🎵",
+  "color": "#8a6a2a",
+  "atajo": "F9",
+  "parametros_dsp": {
+    "pitch_semitonos": 1.0,
+    "formant_shift": 0.95,
+    "reverb_room_size": 0.35,
+    "reverb_damping": 0.5,
+    "distortion_drive": 0.0,
+    "gain_db": 1.0,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": -1.0,
+    "eq_mid_db": 2.5,
+    "eq_high_db": 2.0
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555508",
+  "nombre": "Viejito",
+  "tipo": "DSP",
+  "icono": "👴",
+  "color": "#8a8a6a",
+  "atajo": "F11",
+  "parametros_dsp": {
+    "pitch_semitonos": 3.5,
+    "formant_shift": 0.85,
+    "reverb_room_size": 0.05,
+    "reverb_damping": 0.7,
+    "distortion_drive": 0.05,
+    "gain_db": -1.0,
+    "ring_mod_freq": 30.0,
+    "eq_low_db": -2.0,
+    "eq_mid_db": 1.0,
+    "eq_high_db": -1.5
+  }
+}

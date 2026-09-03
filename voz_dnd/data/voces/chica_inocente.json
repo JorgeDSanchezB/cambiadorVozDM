@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555501",
+  "nombre": "Chica Inocente",
+  "tipo": "DSP",
+  "icono": "👧",
+  "color": "#d4a0c0",
+  "atajo": "F4",
+  "parametros_dsp": {
+    "pitch_semitonos": 4.0,
+    "formant_shift": 0.80,
+    "reverb_room_size": 0.05,
+    "reverb_damping": 0.7,
+    "distortion_drive": 0.0,
+    "gain_db": 1.0,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": -3.0,
+    "eq_mid_db": 2.0,
+    "eq_high_db": 3.0
+  }
+}

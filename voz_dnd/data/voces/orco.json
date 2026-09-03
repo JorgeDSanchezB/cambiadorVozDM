@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555502",
+  "nombre": "Orco",
+  "tipo": "DSP",
+  "icono": "👹",
+  "color": "#4a6b2a",
+  "atajo": "F5",
+  "parametros_dsp": {
+    "pitch_semitonos": -5.0,
+    "formant_shift": 1.40,
+    "reverb_room_size": 0.12,
+    "reverb_damping": 0.4,
+    "distortion_drive": 0.25,
+    "gain_db": 2.0,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 5.0,
+    "eq_mid_db": 2.0,
+    "eq_high_db": -2.0
+  }
+}

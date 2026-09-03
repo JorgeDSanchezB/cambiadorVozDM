@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555507",
+  "nombre": "Mujer Madura",
+  "tipo": "DSP",
+  "icono": "👩",
+  "color": "#a06080",
+  "atajo": "F10",
+  "parametros_dsp": {
+    "pitch_semitonos": 3.0,
+    "formant_shift": 0.88,
+    "reverb_room_size": 0.08,
+    "reverb_damping": 0.6,
+    "distortion_drive": 0.0,
+    "gain_db": 0.5,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": -1.0,
+    "eq_mid_db": 1.5,
+    "eq_high_db": 0.5
+  }
+}

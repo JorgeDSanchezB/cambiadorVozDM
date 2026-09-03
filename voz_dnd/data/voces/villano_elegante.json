@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555503",
+  "nombre": "Villano Elegante",
+  "tipo": "DSP",
+  "icono": "🎩",
+  "color": "#2a1a3a",
+  "atajo": "F6",
+  "parametros_dsp": {
+    "pitch_semitonos": -2.0,
+    "formant_shift": 1.12,
+    "reverb_room_size": 0.30,
+    "reverb_damping": 0.55,
+    "distortion_drive": 0.0,
+    "gain_db": 0.5,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": 2.0,
+    "eq_mid_db": 1.5,
+    "eq_high_db": 1.0
+  }
+}

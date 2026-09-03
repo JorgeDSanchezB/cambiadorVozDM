@@ -44,6 +44,7 @@ class MotorAudio:
         self.grabador = GestorGrabacion(
             cfg.grabacion, self.sr, ffmpeg_ruta=cfg.motor.ffmpeg_ruta)
         self.monitoreo: bool = True  # False → silencio local (sigue grabando)
+        self._pausado: bool = False
         self._nivel_db: float = -90.0
         self._errores: deque[str] = deque(maxlen=30)
 
@@ -84,11 +85,52 @@ class MotorAudio:
             finally:
                 self._stream = None
 
+    # --------------------------- pausa / reanudar ------------------------ #
+    @property
+    def pausado(self) -> bool:
+        return self._pausado
+
+    def pausar(self) -> None:
+        if self._stream is not None and not self._pausado:
+            try:
+                self._stream.stop()
+            except Exception:  # noqa: BLE001
+                log.exception("Error al pausar el stream")
+            else:
+                self._pausado = True
+                self._nivel_db = -90.0
+
+    def reanudar(self) -> None:
+        if self._stream is not None and self._pausado:
+            try:
+                self._stream.start()
+            except Exception:  # noqa: BLE001
+                log.exception("Error al reanudar el stream")
+            else:
+                self._pausado = False
+
     def _par_dispositivos(self) -> tuple[int, int] | None:
+        import sounddevice as _sd
         entrada = self._cfg.audio.dispositivo_entrada
         salida = self._cfg.audio.dispositivo_salida
-        if entrada is None and salida is None:
-            return None  # dispositivos por defecto del sistema
+
+        if entrada is None:
+            entrada = int(_sd.default.device[0])
+        if salida is None:
+            salida = int(_sd.default.device[1])
+
+        info_e = _sd.query_devices(entrada, "input")
+        if info_e["max_input_channels"] < 1:
+            log.warning("Dispositivo de entrada %d sin canales de entrada; "
+                        "se usa el defecto del sistema", entrada)
+            entrada = int(_sd.default.device[0])
+
+        info_s = _sd.query_devices(salida, "output")
+        if info_s["max_output_channels"] < 1:
+            log.warning("Dispositivo de salida %d sin canales de salida; "
+                        "se usa el defecto del sistema", salida)
+            salida = int(_sd.default.device[1])
+
         return (entrada, salida)
 
     # --------------------------- voz activa ------------------------------ #

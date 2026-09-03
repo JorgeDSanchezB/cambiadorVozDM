@@ -220,6 +220,12 @@ class PestanaAjustes(QWidget):
             f"≈ {base + OVERHEAD_DRIVER_MS:.0f} ms (sin contar efectos DSP)")
 
     def _guardar(self) -> None:
+        atajos: dict[str, str] = {}
+        for id_voz, editor in self._editores_atajo.items():
+            secuencia = editor.keySequence().toString()
+            if secuencia:
+                atajos[secuencia] = id_voz
+
         cfg = ConfigApp(
             audio=ConfigAudio(
                 sample_rate=self.combo_sr.currentData() or 48000,
@@ -240,11 +246,6 @@ class PestanaAjustes(QWidget):
                 ffmpeg_ruta=self.edit_ffmpeg.text().strip(),
             ),
             ui=self._cfg.ui,
+            atajos=atajos,
         )
-        atajos: dict[str, str] = {}
-        for id_voz, editor in self._editores_atajo.items():
-            secuencia = editor.keySequence().toString()
-            if secuencia:
-                atajos[secuencia] = id_voz
-        cfg.atajos = atajos
         self.senal_config_actualizada.emit(cfg)

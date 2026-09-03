@@ -1,0 +1,20 @@
+{
+  "id": "55555555-5555-4555-8555-555555555512",
+  "nombre": "Diosa",
+  "tipo": "DSP",
+  "icono": "🌙",
+  "color": "#4a2a6a",
+  "atajo": "Shift+F3",
+  "parametros_dsp": {
+    "pitch_semitonos": 3.5,
+    "formant_shift": 0.90,
+    "reverb_room_size": 0.50,
+    "reverb_damping": 0.35,
+    "distortion_drive": 0.0,
+    "gain_db": 1.0,
+    "ring_mod_freq": 0.0,
+    "eq_low_db": -1.0,
+    "eq_mid_db": 1.0,
+    "eq_high_db": 3.0
+  }
+}
