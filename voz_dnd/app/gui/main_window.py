@@ -36,16 +36,18 @@ from app.domain.catalogo import CatalogoParametros
 from app.domain.models import ParametrosDSP, PerfilDSP, PerfilIA
 from app.engine.fabrica_cadena import ConfigCadena, FabricaCadena
 from app.engine.gestor_voces import GestorVoces
+from app.engine.lector_texto import LectorTexto, configurar_voz_tts
 from app.engine.modulo_ia import ModuloIA
 from app.engine.motor_audio import MotorAudio
 from app.engine.procesador import ProcesadorBase, ProcesadorDSP, ProcesadorIA
 from app.gui.medidor_nivel import MedidorNivel
 from app.gui.pestana_ajustes import PestanaAjustes
 from app.gui.pestana_editor import PestanaEditor
+from app.gui.pestana_lectura import PestanaLectura
 from app.gui.pestana_voces import PestanaVoces
 from app.gui.tema import Tema, estilo_global, tema_por_nombre
 from app.gui.widgets import BannerAlerta
-from app.rutas import CARPETA_VOCES, RUTA_CONFIG, RUTA_PARAMETROS
+from app.rutas import CARPETA_VOCES, DATA_DIR, RUTA_CONFIG, RUTA_PARAMETROS
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +58,8 @@ INTERVALO_RELOJ_MS = 500      # timer de grabación
 
 class VentanaPrincipal(QMainWindow):
     senal_exportacion = pyqtSignal(object, object)  # (Path|None, aviso|None)
+    senal_progreso_lectura = pyqtSignal(str)        # texto de estado del render
+    senal_lectura_lista = pyqtSignal(object, object)  # (ruta_wav|None, info|None)
 
     def __init__(self):
         super().__init__()
@@ -87,6 +91,9 @@ class VentanaPrincipal(QMainWindow):
         self._timer_preview.timeout.connect(self._terminar_preview)
         self._grabacion_en_curso = False
         self._atajos: list[QShortcut] = []
+        self._hilo_lectura: threading.Thread | None = None
+        self._lectura_cancelada = False
+        self._leyendo = False
 
         # ---------------------------- UI -------------------------------- #
         self._construir_ui()
@@ -203,9 +210,11 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_editor = PestanaEditor(self.gestor_voces, self.catalogo)
         self.pestana_ajustes = PestanaAjustes(
             self.cfg, self.gestor_voces.todas(), self._tema)
+        self.pestana_lectura = PestanaLectura(self._tema)
         pestanas = QTabWidget()
         pestanas.addTab(self.pestana_voces, "🎤 Voces")
         pestanas.addTab(self.pestana_editor, "🎚️ Editor")
+        pestanas.addTab(self.pestana_lectura, "📖 Leer")
         pestanas.addTab(self.pestana_ajustes, "⚙️ Ajustes")
         raiz.addWidget(pestanas, 1)
 
@@ -221,6 +230,12 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_editor.senal_probar.connect(self._probar_parametros)
         self.pestana_editor.senal_voces_cambiadas.connect(self._voces_cambiadas)
         self.pestana_ajustes.senal_config_actualizada.connect(self._aplicar_config)
+
+        self.pestana_lectura.senal_leer.connect(self._leer_texto)
+        self.pestana_lectura.senal_detener.connect(self._detener_lectura)
+        self.pestana_lectura.senal_voz_tts.connect(configurar_voz_tts)
+        self.senal_progreso_lectura.connect(self.pestana_lectura.set_estado)
+        self.senal_lectura_lista.connect(self._mostrar_lectura_lista)
 
     # ============================== voces ================================== #
     def _poblar_voces(self, voces, seleccionar_id: str | None) -> None:
@@ -297,6 +312,117 @@ class VentanaPrincipal(QMainWindow):
             self.motor.cambiar_procesador(self._preview_previo)
             self._preview_previo = None
             self._refrescar_info_motor()
+
+    # ========================= lectura de texto =========================== #
+    def _leer_texto(self, texto: str) -> None:
+        """Lee el texto con la voz activa en un hilo de trabajo.
+
+        Construye un procesador FRESCO desde la voz seleccionada (igual que
+        el micrófono), sintetiza el texto con edge-tts, le aplica la voz y
+        primero reproduce el resultado por el stream y (opcional) lo guarda
+        en WAV. Todo el trabajo pesado/TTS/RVC ocurre fuera del hilo de la
+        GUI y del de audio.
+        """
+        if self._leyendo:
+            self.banner.mostrar_info("Ya hay una lectura en curso.")
+            return
+        texto = texto.strip()
+        if not texto:
+            self.pestana_lectura.set_estado("El texto está vacío.")
+            return
+
+        voz = self._voz_actual
+        sr = self.cfg.audio.sample_rate
+        try:
+            if isinstance(voz, PerfilIA):
+                if not self.cfg.motor.permitir_ia:
+                    self.banner.mostrar_error(
+                        "El modo IA está deshabilitado en Ajustes.")
+                    return
+                motor_ia = ModuloIA(voz.parametros_ia, sr)
+                procesador: ProcesadorBase = ProcesadorIA(
+                    voz, sr, self._cfg_cadena, self._fabrica, motor_ia)
+            else:
+                procesador = ProcesadorDSP(voz, sr, self._cfg_cadena, self._fabrica)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("No se pudo preparar la voz para leer")
+            self.banner.mostrar_error(f"No se pudo preparar la voz para leer: {exc}")
+            return
+
+        self._lectura_cancelada = False
+        self._leyendo = True
+        self.pestana_lectura.set_leyendo(True)
+        self.pestana_lectura.set_estado("Preparando la voz…")
+        ruta_wav = None
+        if self.pestana_lectura.check_wav.isChecked():
+            ruta_wav = self._ruta_wav_salida()
+        self._hilo_lectura = threading.Thread(
+            target=self._lectura_en_hilo,
+            args=(texto, procesador, sr, ruta_wav), daemon=True)
+        self._hilo_lectura.start()
+
+    def _lectura_en_hilo(self, texto, procesador, sr, ruta_wav) -> None:
+        lector = LectorTexto()
+        try:
+            # El modo IA requiere cargar su modelo (lento → aquí en el hilo).
+            preparar = getattr(procesador, "preparar", None)
+            if callable(preparar):
+                preparar()
+            if self._lectura_cancelada:
+                return
+            salida = lector.renderizar(
+                texto, procesador, sr, ruta_wav=ruta_wav,
+                on_progreso=self._reportar_progreso if not self._lectura_cancelada
+                else None)
+            self.senal_lectura_lista.emit(ruta_wav, None)
+            if not self._lectura_cancelada:
+                self.motor.reproducir(salida)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Error al leer el texto")
+            self.senal_lectura_lista.emit(None, f"Error: {exc}")
+        finally:
+            cerrar = getattr(procesador, "cerrar", None)
+            if callable(cerrar):
+                try:
+                    cerrar()
+                except Exception:  # noqa: BLE001
+                    log.exception("Error al cerrar el procesador de lectura")
+
+    def _reportar_progreso(self, mensaje: str) -> None:
+        if not self._lectura_cancelada:
+            self.senal_progreso_lectura.emit(mensaje)
+
+    def _mostrar_lectura_lista(self, ruta_wav, error) -> None:
+        self._leyendo = False
+        self.pestana_lectura.set_leyendo(False)
+        if error:
+            self.pestana_lectura.set_estado(str(error))
+            self.banner.mostrar_error(str(error))
+            return
+        if self._lectura_cancelada:
+            self.pestana_lectura.set_estado("Lectura detenida.")
+            return
+        texto = "▶ Reproduciendo el texto con tu voz."
+        if ruta_wav is not None:
+            texto += f" WAV guardado en:\n{ruta_wav}"
+            self.banner.mostrar_info(
+                "Texto leído con la voz seleccionada. WAV guardado en "
+                f"{ruta_wav}")
+        else:
+            self.banner.mostrar_info("Texto leído con la voz seleccionada.")
+        self.pestana_lectura.set_estado(texto)
+
+    def _detener_lectura(self) -> None:
+        """Detiene la reproducción en curso y pide al hilo que aborte."""
+        self._lectura_cancelada = True
+        self.motor.detener_reproduccion()
+
+    def _ruta_wav_salida(self) -> Path:
+        """Ruta destino del WAV de lectura (data/lectura/lectura_<ts>.wav)."""
+        from datetime import datetime
+        carpeta = DATA_DIR / "lectura"
+        nombre = f"lectura_{datetime.now():%Y%m%d_%H%M%S}.wav"
+        return carpeta / nombre
 
     # ============================ grabación ================================ #
     def _alternar_grabacion(self) -> None:
@@ -403,6 +529,7 @@ class VentanaPrincipal(QMainWindow):
             self.setStyleSheet(estilo_global(self._tema))
             self.pestana_voces.set_tema(self._tema)
             self.pestana_ajustes.set_tema(self._tema)
+            self.pestana_lectura.set_tema(self._tema)
         self._cfg_cadena = ConfigCadena(tam_grano_pitch=cfg.motor.tam_grano_pitch)
         if cambio_audio:
             try:
@@ -464,5 +591,6 @@ class VentanaPrincipal(QMainWindow):
                     QMessageBox.information(self, "Grabación guardada", str(ruta))
                 elif aviso:
                     QMessageBox.warning(self, "Grabación", aviso)
+        self._detener_lectura()
         self.motor.detener()
         evento.accept()

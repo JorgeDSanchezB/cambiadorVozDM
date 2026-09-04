@@ -7,6 +7,10 @@ numpy>=1.24
 scipy>=1.10
 pydub>=0.25.1
 
+# Lectura de archivos de texto (Fase 6): voz neural de Microsoft en línea.
+edge-tts>=6.1
+soundfile>=0.12
+
 # ---------- OPCIONAL: Modo IA (clonación de voz con RVC) ----------
 # IMPORTANTE: LA APP FUNCIONA SIEMPRE SIN ESTO (degrade a DSP).
 # El modo IA es MULTIMOTOR con auto-detección en tiempo de ejecución:

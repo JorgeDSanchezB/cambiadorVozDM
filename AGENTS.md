@@ -14,7 +14,8 @@ This repo is a **deployment-sandbox template + the real app**, not a single cohe
   `voz_dnd\.venv\Scripts\python.exe` (on Windows). Do not use a system `python`.
 - Entry point: `voz_dnd\main.py` (PyQt6 GUI). Launch via `voz_dnd\iniciar_voz_dnd.bat` on Windows.
 - **There is no test suite / CI / linter config** for this app. "Verification" = `python -m py_compile <files>` plus hand-written headless smoke tests (import the engine, feed synthetic `(frames,1)` float32 arrays, assert it doesn't raise).
-- Paths are resolved relative to the package via `app/rutas.py` (single source of truth): voice/config data lives in `voz_dnd\data\` (`voces/*.json`, `config.json`, `parametros.json`), logs in `voz_dnd\logs\app.log`.
+- Paths are resolved relative to the package via `app/rutas.py` (single source of truth): voice/config data lives in `voz_dnd\data\` (`voces/*.json`, `config.json`, `parametros.json`), logs in `voz_dnd\logs\app.log`. Reading-text-feature WAVs go to `data\lectura\` (not versioned).
+- **TTS dependency (`edge-tts`)**: the "📖 Leer" tab (Fase 6) reads a text file with the selected voice. It needs `edge-tts` (online neural TTS, Microsoft) + `soundfile`; both are in `requirements.txt`. It **requires internet at runtime**. If `edge-tts` is missing it raises a clear error; far from network use the feature just errors, it doesn't crash the app.
 
 ## voz_dnd: architecture & hard-won gotchas
 
@@ -25,6 +26,7 @@ Layers: `app/domain/` (pure, no I/O/Qt), `app/engine/` (audio + orchestration), 
 - **Startup has a built-in audio fallback**: `MotorAudio.iniciar()` tries the configured devices first; if that raises, it retries with the system defaults and sets `usando_dispositivos_default`. It only raises if even the defaults fail (truly no audio device). `main_window.py` shows an info banner (not an error) in the fallback case — keep this seam working when touching startup.
 - **IA mode is multi-engine and must degrade gracefully** (`modulo_ia.py` + `rvc_adapter.py`): PyTorch RVC → ONNX RVC → plain DSP. The path where no engine/model is ready must still process audio (bypass/DSP) and **never drop/crash the stream**. If the user's machine has no IA model or engine, `esta_listo()==False` is the expected, correct state.
 - Each installation can inject its own `adapter=` into `ModuloIA` (priority over built-in engines) — keep that seam working.
+- **Offline replay seam (`motor_audio.py` + `lector_texto.py`)**: the "📖 Leer" tab renders text→speech fully offline, then plays it through the SAME single full-duplex stream. `MotorAudio.reproducir(datos)` swaps a `(N,1)` float32 buffer into the callback (served instead of the mic until exhausted, returning to mic+DSP after). This keeps "one stream / no device contention"; don't add a second `sd.Stream` for playback. `lector_texto.py` is pure-engine (no Qt) and runs on a worker thread — never call it from the audio or GUI thread.
 
 ## Python 3.14 constraint (critical)
 

@@ -47,6 +47,11 @@ class MotorAudio:
         self._pausado: bool = False
         self._nivel_db: float = -90.0
         self._errores: deque[str] = deque(maxlen=30)
+        # Reproducción de audio pre-procesado (lectura de texto): el callback
+        # sirve este buffer (N,1) float32 en vez del micrófono mientras queda
+        # audio. Se intercambia por referencia (seguro bajo el GIL).
+        self._playback: np.ndarray | None = None
+        self._playback_pos: int = 0
 
     # --------------------------- ciclo de vida --------------------------- #
     def iniciar(self) -> None:
@@ -182,6 +187,28 @@ class MotorAudio:
                 except Exception:  # noqa: BLE001 — nunca debe cortar el cambio
                     log.exception("Error al cerrar el procesador de voz anterior")
 
+    # --------------------- reproducción de audio (texto) ------------------ #
+    def reproducir(self, datos: np.ndarray | None) -> None:
+        """Pone un buffer (N,1) float32 para reproducirlo por el stream.
+
+        Mientras quede audio, el callback lo sirve a la salida en lugar del
+        micrófono (el audio ya viene procesado con la voz). `None` detiene.
+        """
+        if datos is None or datos.size == 0:
+            self._playback = None
+            self._playback_pos = 0
+            return
+        self._playback = datos.astype(np.float32).reshape(-1, 1)
+        self._playback_pos = 0
+
+    @property
+    def reproduciendo(self) -> bool:
+        buf = self._playback
+        return buf is not None and self._playback_pos < buf.shape[0]
+
+    def detener_reproduccion(self) -> None:
+        self.reproducir(None)
+
     # --------------------------- configuración --------------------------- #
     def aplicar_config_audio(self, cfg: ConfigApp) -> None:
         """Cambia buffer/dispositivos en caliente: reinicia el stream."""
@@ -218,6 +245,31 @@ class MotorAudio:
         try:
             if status:
                 self._errores.append(f"Driver de audio: {status}")
+
+            # --- Reproducción de audio pre-procesado (lectura de texto) ---
+            # Si hay un buffer en curso, se sirve a la salida en vez del
+            # micrófono; al agotarse vuelve al flujo Micrófono → DSP → Salida.
+            playback = self._playback
+            if playback is not None:
+                pos = self._playback_pos
+                resto = playback.shape[0] - pos
+                if resto > 0:
+                    n = min(frames, resto)
+                    salida = playback[pos: pos + n, 0]
+                    pos += n
+                    self._playback_pos = pos
+                    if pos >= playback.shape[0]:
+                        self._playback = None
+                        self._playback_pos = 0
+                    if salida.shape[0] < frames:
+                        salida = np.pad(salida, (0, frames - salida.shape[0]))
+                    if self.monitoreo:
+                        outdata[:, 0] = salida
+                    else:
+                        outdata.fill(0.0)
+                    self._nivel_db = rms_a_db(salida)
+                    self.grabador.tap(salida.reshape(-1, 1).astype(np.float32))
+                    return
 
             # Contrato de efectos: bloque (frames, 1) float32
             bloque = indata[:, :1].copy()
