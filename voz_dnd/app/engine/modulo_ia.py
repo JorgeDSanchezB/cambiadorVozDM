@@ -220,3 +220,18 @@ class ModuloIA:
         if not self._listo or self._modelo is None:
             raise RuntimeError("ModuloIA no está listo.")
         return self._modelo.procesar(bloque, sr)
+
+    # ------------------------------------------------------------------ #
+    def detener(self) -> None:
+        """Detiene el hilo de inferencia interno (si el motor lo expone).
+
+        Se llama al cambiar de voz o al cerrar la app, para no dejar hilos
+        de fondo haciendo inferencia.
+        """
+        if self._modelo is not None:
+            detener = getattr(self._modelo, "detener", None)
+            if callable(detener):
+                try:
+                    detener()
+                except Exception:  # noqa: BLE001
+                    log.exception("Error al detener el motor IA")

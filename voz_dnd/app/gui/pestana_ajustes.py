@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -32,9 +33,11 @@ from app.config import (
     ConfigAudio,
     ConfigGrabacion,
     ConfigMotor,
+    ConfigUI,
 )
 from app.domain.models import IVoiceProfile
 from app.engine.modulo_ia import ModuloIA
+from app.gui.tema import CLARO, Tema
 
 log = logging.getLogger(__name__)
 
@@ -46,16 +49,39 @@ OVERHEAD_DRIVER_MS = 8.0
 class PestanaAjustes(QWidget):
     senal_config_actualizada = pyqtSignal(object)  # ConfigApp
 
-    def __init__(self, cfg: ConfigApp, voces: list[IVoiceProfile]):
+    def __init__(self, cfg: ConfigApp, voces: list[IVoiceProfile],
+                 tema: Tema | None = None):
         super().__init__()
         self._cfg = cfg
         self._voces = voces
+        self._tema = tema or CLARO
         self._editores_atajo: dict[str, QKeySequenceEdit] = {}  # id → editor
         self._form_atajos: QFormLayout | None = None
 
-        raiz = QVBoxLayout(self)
+        contenido = QWidget()
+        raiz = QVBoxLayout(contenido)
         raiz.setContentsMargins(12, 12, 12, 12)
         raiz.setSpacing(12)
+        self._contenido = contenido
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setWidget(contenido)
+        self._scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
+        raiz_ventana = QVBoxLayout(self)
+        raiz_ventana.setContentsMargins(0, 0, 0, 0)
+        raiz_ventana.addWidget(self._scroll)
+        self._raiz_ventana = raiz_ventana
+
+        # ------------------------ Apariencia ---------------------- #
+        grupo_tema = QGroupBox("🎨 Apariencia")
+        form_tema = QFormLayout(grupo_tema)
+        self.combo_tema = QComboBox()
+        self.combo_tema.addItem("🌙 Oscuro", "oscuro")
+        self.combo_tema.addItem("☀️ Claro", "claro")
+        self.combo_tema.setCurrentIndex(
+            0 if self._tema.nombre == "oscuro" else 1)
+        form_tema.addRow("Tema:", self.combo_tema)
+        raiz.addWidget(grupo_tema)
 
         # ------------------------- Audio ------------------------- #
         grupo_audio = QGroupBox("🎙️ Audio (latencia)")
@@ -245,7 +271,15 @@ class PestanaAjustes(QWidget):
                 tam_grano_pitch=self._cfg.motor.tam_grano_pitch,
                 ffmpeg_ruta=self.edit_ffmpeg.text().strip(),
             ),
-            ui=self._cfg.ui,
+            ui=ConfigUI(
+                vista_botones=self._cfg.ui.vista_botones,
+                tema=self.combo_tema.currentData() or "oscuro",
+            ),
             atajos=atajos,
         )
         self.senal_config_actualizada.emit(cfg)
+
+    def set_tema(self, tema: Tema) -> None:
+        """Aplicado externamente (p. ej. al recargar config): sincroniza el combo."""
+        self._tema = tema
+        self.combo_tema.setCurrentIndex(0 if tema.nombre == "oscuro" else 1)

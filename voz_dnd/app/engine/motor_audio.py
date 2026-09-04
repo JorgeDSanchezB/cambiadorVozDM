@@ -50,30 +50,58 @@ class MotorAudio:
 
     # --------------------------- ciclo de vida --------------------------- #
     def iniciar(self) -> None:
-        """Abre el stream full-duplex. Lanza excepción si no hay audio."""
+        """Abre el stream full-duplex. Lanza excepción si no hay audio.
+
+        Si la combinación de dispositivos guardada no se puede abrir (p. ej.
+        un id obsoleto en config.json), reintenta con los dispositivos por
+        defecto del sistema en vez de dejar la app sin audio.
+        """
         import sounddevice as sd  # import diferido: permite diagnosticar sin PortAudio
         self._sd = sd
+        self._usando_defaults = False
         dispositivo = self._par_dispositivos()
         log.info("Abriendo audio: sr=%s buffer=%s dispositivos=%s",
                  self.sr, self._cfg.audio.buffer_size, dispositivo)
         try:
-            self._stream = sd.Stream(
-                samplerate=self.sr,
-                blocksize=int(self._cfg.audio.buffer_size),
-                dtype="float32",
-                channels=1,
-                device=dispositivo,
-                callback=self._callback,
-            )
+            self._stream = self._abrir_stream(dispositivo)
             self._stream.start()
-        except Exception:
-            log.exception("Fallo al abrir el stream de audio")
-            if self._stream is not None:
-                try:
-                    self._stream.close()
-                finally:
-                    self._stream = None
-            raise
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Fallo al abrir el audio con los dispositivos "
+                        "guardados (%s): %s", dispositivo, exc)
+            self._cerrar_stream()
+            # Reintento con los dispositivos por defecto del sistema para que
+            # un id obsoleto en config.json no deje la app sin audio.
+            self._stream = self._abrir_stream(None)
+            self._usando_defaults = True
+            try:
+                self._stream.start()
+            except Exception:
+                self._cerrar_stream()
+                raise
+
+    def _abrir_stream(self, dispositivo) -> None:
+        import sounddevice as sd
+        return sd.Stream(
+            samplerate=self.sr,
+            blocksize=int(self._cfg.audio.buffer_size),
+            dtype="float32",
+            channels=1,
+            device=dispositivo,
+            callback=self._callback,
+        )
+
+    @property
+    def usando_dispositivos_default(self) -> bool:
+        """True si el audio se abrió con los dispositivos del sistema porque
+        los guardados en config.json no pudieron abrirse."""
+        return getattr(self, "_usando_defaults", False)
+
+    def _cerrar_stream(self) -> None:
+        if self._stream is not None:
+            try:
+                self._stream.close()
+            except Exception:  # noqa: BLE001
+                log.exception("Error al cerrar el stream de audio")
 
     def detener(self) -> None:
         if self._stream is not None:
@@ -139,8 +167,20 @@ class MotorAudio:
         return self._procesador
 
     def cambiar_procesador(self, procesador: ProcesadorBase) -> None:
-        """Cambio de voz: intercambio de referencia, seguro y sin bloqueo."""
+        """Cambio de voz: intercambio de referencia, seguro y sin bloqueo.
+
+        Detiene los recursos de fondo del procesador saliente (p. ej. el hilo
+        de inferencia del modo IA) antes de sustituirlo.
+        """
+        anterior = self._procesador
         self._procesador = procesador
+        if anterior is not None and anterior is not procesador:
+            cerrar = getattr(anterior, "cerrar", None)
+            if callable(cerrar):
+                try:
+                    cerrar()
+                except Exception:  # noqa: BLE001 — nunca debe cortar el cambio
+                    log.exception("Error al cerrar el procesador de voz anterior")
 
     # --------------------------- configuración --------------------------- #
     def aplicar_config_audio(self, cfg: ConfigApp) -> None:

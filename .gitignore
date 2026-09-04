@@ -62,3 +62,8 @@ prompt
 server.log
 # Skills directory
 /skills/
+/.agents/
+/skills-lock.json
+
+# Modelos de IA (grandes, re-descargables; no van a git)
+/voz_dnd/data/modelos/

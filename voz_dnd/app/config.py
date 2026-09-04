@@ -45,6 +45,7 @@ class ConfigMotor:
 @dataclass
 class ConfigUI:
     vista_botones: bool = True
+    tema: str = "claro"         # "oscuro" | "claro" (ver app/gui/tema.py)
 
 
 @dataclass
@@ -124,6 +125,8 @@ class RepoConfig:
         if cfg.audio.sample_rate not in SAMPLE_RATES_VALIDOS:
             avisos.append(f"Sample rate {cfg.audio.sample_rate} no válido; se usó 48000.")
             cfg.audio.sample_rate = 48000
+        if cfg.ui.tema not in ("oscuro", "claro"):
+            cfg.ui.tema = "oscuro"
         return cfg, avisos
 
     def guardar(self, cfg: ConfigApp) -> None:

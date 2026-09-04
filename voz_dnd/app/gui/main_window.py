@@ -19,6 +19,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QHBoxLayout,
     QLabel,
@@ -42,6 +43,7 @@ from app.gui.medidor_nivel import MedidorNivel
 from app.gui.pestana_ajustes import PestanaAjustes
 from app.gui.pestana_editor import PestanaEditor
 from app.gui.pestana_voces import PestanaVoces
+from app.gui.tema import Tema, estilo_global, tema_por_nombre
 from app.gui.widgets import BannerAlerta
 from app.rutas import CARPETA_VOCES, RUTA_CONFIG, RUTA_PARAMETROS
 
@@ -51,27 +53,6 @@ DURACION_PREVIEW_MS = 2000
 INTERVALO_METRO_MS = 33       # ~30 FPS para el medidor de nivel
 INTERVALO_RELOJ_MS = 500      # timer de grabación
 
-ESTILO = """
-QMainWindow { background: #14161a; }
-QTabWidget::pane { border: 1px solid #2a2e36; border-radius: 6px; background: #191c22; }
-QTabBar::tab { background: #1f232b; color: #9aa4b2; padding: 8px 18px;
-               border-top-left-radius: 6px; border-top-right-radius: 6px; }
-QTabBar::tab:selected { background: #191c22; color: #e8e3d5; font-weight: 700; }
-QWidget { color: #cfd6e0; font-size: 13px; }
-QLabel#titulo { color: #e8e3d5; font-size: 17px; font-weight: 700; }
-QLabel#reloj { color: #ff6b6b; font-size: 16px; font-weight: 700; }
-QLabel#latencia { color: #9aa4b2; font-size: 12px; }
-QPushButton { min-height: 30px; background: #242933; border: 1px solid #333a47;
-              border-radius: 6px; padding: 4px 12px; }
-QPushButton:hover { background: #2c3240; }
-QGroupBox { border: 1px solid #2a2e36; border-radius: 8px; margin-top: 10px;
-            padding: 10px; font-weight: 600; }
-QGroupBox::title { color: #9aa4b2; }
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-     background: #10131a; border: 1px solid #333a47; border-radius: 4px; padding: 4px; }
-QCheckBox::indicator { width: 16px; height: 16px; }
-"""
-
 
 class VentanaPrincipal(QMainWindow):
     senal_exportacion = pyqtSignal(object, object)  # (Path|None, aviso|None)
@@ -79,12 +60,13 @@ class VentanaPrincipal(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("🎲 Cambiador de Voz · DM de D&D")
-        self.resize(1000, 680)
-        self.setStyleSheet(ESTILO)
-
-        # ---------- Infraestructura: composición de capas (Fase 1) ----------
+        self._fijar_tamano_base()
         self.repo_cfg = RepoConfig(RUTA_CONFIG)
         self.cfg, avisos_cfg = self.repo_cfg.cargar()
+        self._tema = tema_por_nombre(self.cfg.ui.tema)
+        self.setStyleSheet(estilo_global(self._tema))
+
+        # ---------- Infraestructura: composición de capas (Fase 1) ----------
         self.catalogo = CatalogoParametros.desde_json(RUTA_PARAMETROS)
         self.gestor_voces = GestorVoces(CARPETA_VOCES, self.catalogo)
         carga = self.gestor_voces.cargar_todas()
@@ -125,9 +107,51 @@ class VentanaPrincipal(QMainWindow):
             self.banner.mostrar_error(
                 f"No se pudo abrir el audio: {exc}\n"
                 "Revisa Ajustes → dispositivos y pulsa Guardar ajustes para reintentar.")
+        else:
+            if self.motor.usando_dispositivos_default:
+                self.banner.mostrar_info(
+                    "Los dispositivos guardados no se pudieron abrir; "
+                    "se usan los del sistema. Revisa Ajustes → dispositivos.")
 
         self.senal_exportacion.connect(self._mostrar_exportacion)
         self._refrescar_info_motor()
+        self._ajustar_a_pantalla()
+
+    def showEvent(self, evento) -> None:  # noqa: N802 (API Qt)
+        """Al mostrarse se re-ajusta y centra la ventana (el layout de los
+        paneles con scroll puede terminar de calcularse al mostrarse)."""
+        super().showEvent(evento)
+        self._ajustar_a_pantalla()
+
+    def _fijar_tamano_base(self) -> None:
+        """Tamaño inicial recortado al área visible (antes de construir la UI)."""
+        screen = QApplication.primaryScreen()
+        if screen is None:
+            self.resize(1000, 680)
+            return
+        disp = screen.availableGeometry()
+        self.resize(min(1000, disp.width() - 40), min(680, disp.height() - 60))
+
+    def _ajustar_a_pantalla(self) -> None:
+        """Tras construir la UI: ajusta el tamaño al contenido sin pasarse del
+        área visible y centra la ventana para que nunca quede fuera (ni por la
+        parte de abajo). El tamaño mínimo se recorta también para que un
+        contenido grande no fuerce a la ventana a salirse de la pantalla (los
+        paneles internos con scroll absorben el sobrante)."""
+        screen = QApplication.primaryScreen()
+        if screen is None:
+            return
+        disp = screen.availableGeometry()
+        ancho_max = disp.width() - 40
+        alto_max = disp.height() - 60
+        self.setMinimumSize(
+            min(self.minimumSizeHint().width(), ancho_max),
+            min(self.minimumSizeHint().height(), alto_max))
+        self.adjustSize()
+        self.resize(min(self.size().width(), ancho_max),
+                    min(self.size().height(), alto_max))
+        self.move(disp.x() + (disp.width() - self.width()) // 2,
+                  disp.y() + (disp.height() - self.height()) // 2)
 
     # ============================ construcción UI ========================== #
     def _construir_ui(self) -> None:
@@ -175,8 +199,10 @@ class VentanaPrincipal(QMainWindow):
 
         # ---- Pestañas ----
         self.pestana_voces = PestanaVoces()
+        self.pestana_voces.set_tema(self._tema)
         self.pestana_editor = PestanaEditor(self.gestor_voces, self.catalogo)
-        self.pestana_ajustes = PestanaAjustes(self.cfg, self.gestor_voces.todas())
+        self.pestana_ajustes = PestanaAjustes(
+            self.cfg, self.gestor_voces.todas(), self._tema)
         pestanas = QTabWidget()
         pestanas.addTab(self.pestana_voces, "🎤 Voces")
         pestanas.addTab(self.pestana_editor, "🎚️ Editor")
@@ -186,7 +212,7 @@ class VentanaPrincipal(QMainWindow):
         # ---- Pie ----
         pie = QLabel("Consejo: usa auriculares para evitar realimentación "
                      "(micrófono → altavoces).")
-        pie.setStyleSheet("color:#7d8590;")
+        pie.setStyleSheet(f"color:{self._tema.tenue};")
         raiz.addWidget(pie)
 
         # ---- Conexiones entre pestañas y la ventana ----
@@ -369,8 +395,14 @@ class VentanaPrincipal(QMainWindow):
 
     def _aplicar_config(self, cfg: ConfigApp) -> None:
         cambio_audio = (cfg.audio != self.cfg.audio)
+        cambio_tema = (cfg.ui.tema != self.cfg.ui.tema)
         self.cfg = cfg
         self.repo_cfg.guardar(cfg)
+        if cambio_tema:
+            self._tema = tema_por_nombre(cfg.ui.tema)
+            self.setStyleSheet(estilo_global(self._tema))
+            self.pestana_voces.set_tema(self._tema)
+            self.pestana_ajustes.set_tema(self._tema)
         self._cfg_cadena = ConfigCadena(tam_grano_pitch=cfg.motor.tam_grano_pitch)
         if cambio_audio:
             try:

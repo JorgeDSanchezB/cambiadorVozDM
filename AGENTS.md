@@ -21,7 +21,8 @@ This repo is a **deployment-sandbox template + the real app**, not a single cohe
 Layers: `app/domain/` (pure, no I/O/Qt), `app/engine/` (audio + orchestration), `app/gui/` (PyQt6).
 
 - **Real-time audio contract (`motor_audio.py`)**: the `sd.Stream` callback must stay lock-free and never raise. Effects expect `(frames, 1)` float32 arrays; passing 1-D breaks them. Normalize with `reshape(-1, 1)` before/after.
-- **`_par_dispositivos()`** must resolve `None`/invalid device ids to real ones (`_sd.default.device`) and validate channel counts — `None` ids used to crash with `Error querying device -1`.
+- **Device ids are stale-prone**: `config.json` stores `dispositivo_entrada`/`dispositivo_salida`; an out-of-date id (e.g. a device that no longer exists) makes PortAudio fail to open the stream (`Illegal combination of I/O devices [-9993]`, or `Error querying device -1` for `None`/invalid). `_par_dispositivos()` must resolve `None`/invalid ids to system defaults and validate channel counts. Keep these values `null` (system default) unless the user explicitly picks a device.
+- **Startup has a built-in audio fallback**: `MotorAudio.iniciar()` tries the configured devices first; if that raises, it retries with the system defaults and sets `usando_dispositivos_default`. It only raises if even the defaults fail (truly no audio device). `main_window.py` shows an info banner (not an error) in the fallback case — keep this seam working when touching startup.
 - **IA mode is multi-engine and must degrade gracefully** (`modulo_ia.py` + `rvc_adapter.py`): PyTorch RVC → ONNX RVC → plain DSP. The path where no engine/model is ready must still process audio (bypass/DSP) and **never drop/crash the stream**. If the user's machine has no IA model or engine, `esta_listo()==False` is the expected, correct state.
 - Each installation can inject its own `adapter=` into `ModuloIA` (priority over built-in engines) — keep that seam working.
 

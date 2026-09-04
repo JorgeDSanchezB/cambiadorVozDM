@@ -97,6 +97,10 @@ class ProcesadorIA(ProcesadorBase):
         else:
             self.degradado = False
 
+    def cerrar(self) -> None:
+        """Detiene recursos de fondo (hilo de inferencia) al descartar la voz."""
+        self._motor_ia.detener()
+
     def procesar(self, bloque: np.ndarray, sr: int) -> np.ndarray:
         salida = bloque
         if self._motor_ia.esta_listo():

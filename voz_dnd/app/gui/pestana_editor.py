@@ -82,7 +82,6 @@ class PestanaEditor(QWidget):
         raiz.addLayout(fila_superior)
 
         self.etiqueta_tipo = QLabel("")
-        self.etiqueta_tipo.setStyleSheet("color:#9aa4b2;")
         raiz.addWidget(self.etiqueta_tipo)
 
         # ---- Sliders generados desde el catálogo (scroll) ----
