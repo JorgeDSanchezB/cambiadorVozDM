@@ -162,7 +162,7 @@ class PestanaLectura(QWidget):
         self._ruta_archivo = Path(ruta)
         self.edit_ruta.setText(ruta)
         try:
-            contenido = ruta.read_text(encoding="utf-8", errors="replace")
+            contenido = Path(ruta).read_text(encoding="utf-8", errors="replace")
             self.texto.setPlainText(contenido)
             self.set_estado(f"Archivo cargado: {self._ruta_archivo.name} "
                             f"({len(contenido.split())} palabras).")
