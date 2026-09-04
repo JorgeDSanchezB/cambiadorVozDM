@@ -15,7 +15,7 @@ This repo is a **deployment-sandbox template + the real app**, not a single cohe
 - Entry point: `voz_dnd\main.py` (PyQt6 GUI). Launch via `voz_dnd\iniciar_voz_dnd.bat` on Windows.
 - **There is no test suite / CI / linter config** for this app. "Verification" = `python -m py_compile <files>` plus hand-written headless smoke tests (import the engine, feed synthetic `(frames,1)` float32 arrays, assert it doesn't raise).
 - Paths are resolved relative to the package via `app/rutas.py` (single source of truth): voice/config data lives in `voz_dnd\data\` (`voces/*.json`, `config.json`, `parametros.json`), logs in `voz_dnd\logs\app.log`. Reading-text-feature WAVs go to `data\lectura\` (not versioned).
-- **TTS dependency (`edge-tts`)**: the "📖 Leer" tab (Fase 6) reads a text file with the selected voice. It needs `edge-tts` (online neural TTS, Microsoft) + `soundfile`; both are in `requirements.txt`. It **requires internet at runtime**. If `edge-tts` is missing it raises a clear error; far from network use the feature just errors, it doesn't crash the app.
+- **TTS dependency (`edge-tts`)**: the "📖 Leer" tab (Fase 6) reads a text file with the selected voice. It needs `edge-tts` (online neural TTS, Microsoft) + `soundfile`; both are in `requirements.txt`. It **requires internet at runtime**. If `edge-tts` is missing it raises a clear error; far from network use the feature just errors, it doesn't crash the app. The WAV output folder is user-selectable in the tab and defaults to `data/lectura/` (gitignored); never report "lee/reproduce" without checking `MotorAudio.audio_activo` (a dead stream from a bad device would otherwise show a false success).
 
 ## voz_dnd: architecture & hard-won gotchas
 

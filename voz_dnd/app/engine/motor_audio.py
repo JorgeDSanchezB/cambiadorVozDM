@@ -120,6 +120,15 @@ class MotorAudio:
 
     # --------------------------- pausa / reanudar ------------------------ #
     @property
+    def audio_activo(self) -> bool:
+        """True si hay un stream de audio real abierto (puede sonar).
+
+        Si el arranque falló (por ejemplo, sin dispositivo de audio), esto
+        es False y conviene avisar antes de afirmar que se reproduce algo.
+        """
+        return self._stream is not None
+
+    @property
     def pausado(self) -> bool:
         return self._pausado
 

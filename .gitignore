@@ -67,3 +67,6 @@ server.log
 
 # Modelos de IA (grandes, re-descargables; no van a git)
 /voz_dnd/data/modelos/
+
+# Salidas de la pestaña "Leer" (WAV generados; no van a git)
+/voz_dnd/data/lectura/

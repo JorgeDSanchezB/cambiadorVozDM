@@ -94,6 +94,7 @@ class VentanaPrincipal(QMainWindow):
         self._hilo_lectura: threading.Thread | None = None
         self._lectura_cancelada = False
         self._leyendo = False
+        self._ultima_lectura = None  # (buffer, ruta_wav|None) para "reproducir de nuevo"
 
         # ---------------------------- UI -------------------------------- #
         self._construir_ui()
@@ -210,7 +211,8 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_editor = PestanaEditor(self.gestor_voces, self.catalogo)
         self.pestana_ajustes = PestanaAjustes(
             self.cfg, self.gestor_voces.todas(), self._tema)
-        self.pestana_lectura = PestanaLectura(self._tema)
+        carpeta_wav = self._carpeta_wav_base()
+        self.pestana_lectura = PestanaLectura(self._tema, carpeta_wav)
         pestanas = QTabWidget()
         pestanas.addTab(self.pestana_voces, "🎤 Voces")
         pestanas.addTab(self.pestana_editor, "🎚️ Editor")
@@ -234,6 +236,9 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_lectura.senal_leer.connect(self._leer_texto)
         self.pestana_lectura.senal_detener.connect(self._detener_lectura)
         self.pestana_lectura.senal_voz_tts.connect(configurar_voz_tts)
+        self.pestana_lectura.senal_abrir_carpeta.connect(
+            lambda c: self._abrir_carpeta(Path(c or ".")))
+        self.pestana_lectura.senal_reproducir.connect(self._reproducir_ultima)
         self.senal_progreso_lectura.connect(self.pestana_lectura.set_estado)
         self.senal_lectura_lista.connect(self._mostrar_lectura_lista)
 
@@ -354,7 +359,7 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_lectura.set_leyendo(True)
         self.pestana_lectura.set_estado("Preparando la voz…")
         ruta_wav = None
-        if self.pestana_lectura.check_wav.isChecked():
+        if self.pestana_lectura.guardar_wav:
             ruta_wav = self._ruta_wav_salida()
         self._hilo_lectura = threading.Thread(
             target=self._lectura_en_hilo,
@@ -374,12 +379,12 @@ class VentanaPrincipal(QMainWindow):
                 texto, procesador, sr, ruta_wav=ruta_wav,
                 on_progreso=self._reportar_progreso if not self._lectura_cancelada
                 else None)
-            self.senal_lectura_lista.emit(ruta_wav, None)
-            if not self._lectura_cancelada:
-                self.motor.reproducir(salida)
+            if self._lectura_cancelada:
+                return
+            self.senal_lectura_lista.emit((ruta_wav, salida), None)
         except Exception as exc:  # noqa: BLE001
             log.exception("Error al leer el texto")
-            self.senal_lectura_lista.emit(None, f"Error: {exc}")
+            self.senal_lectura_lista.emit((None, None), f"Error: {exc}")
         finally:
             cerrar = getattr(procesador, "cerrar", None)
             if callable(cerrar):
@@ -392,35 +397,67 @@ class VentanaPrincipal(QMainWindow):
         if not self._lectura_cancelada:
             self.senal_progreso_lectura.emit(mensaje)
 
-    def _mostrar_lectura_lista(self, ruta_wav, error) -> None:
+    def _mostrar_lectura_lista(self, resultado, error) -> None:
+        # resultado = (ruta_wav|None, salida|None)
         self._leyendo = False
         self.pestana_lectura.set_leyendo(False)
         if error:
             self.pestana_lectura.set_estado(str(error))
             self.banner.mostrar_error(str(error))
             return
+        ruta_wav, salida = resultado
         if self._lectura_cancelada:
             self.pestana_lectura.set_estado("Lectura detenida.")
             return
-        texto = "▶ Reproduciendo el texto con tu voz."
-        if ruta_wav is not None:
-            texto += f" WAV guardado en:\n{ruta_wav}"
-            self.banner.mostrar_info(
-                "Texto leído con la voz seleccionada. WAV guardado en "
-                f"{ruta_wav}")
+
+        # Guardamos el resultado para poder reproducirlo de nuevo.
+        self._ultima_lectura = (salida, ruta_wav)
+        self.pestana_lectura.marcar_reproducible(salida is not None)
+
+        # Aviso si no hay audio donde reproducir (evita el "se leyó" falso).
+        if not self.motor.audio_activo:
+            base = ("⚠ No hay dispositivo de audio disponible para reproducir "
+                    "la lectura.")
         else:
-            self.banner.mostrar_info("Texto leído con la voz seleccionada.")
-        self.pestana_lectura.set_estado(texto)
+            base = "▶ Reproduciendo el texto con tu voz."
+            self.motor.reproducir(salida)
+
+        if ruta_wav is not None:
+            base += (f"\n\n📁 WAV guardado en:\n {ruta_wav}\n"
+                     "(usa «Abrir» o el botón para ver la carpeta)")
+        self.pestana_lectura.set_estado(base)
+
+    def _reproducir_ultima(self) -> None:
+        """Reproduce de nuevo el último texto leído (si hay audio e resultado)."""
+        if not self._ultima_lectura or self._ultima_lectura[0] is None:
+            self.pestana_lectura.set_estado("Aún no hay una lectura para repetir.")
+            return
+        if not self.motor.audio_activo:
+            self.banner.mostrar_error(
+                "No hay dispositivo de audio disponible para reproducir.")
+            return
+        self.motor.reproducir(self._ultima_lectura[0])
+        self.banner.mostrar_info("🔁 Reproduciendo la última lectura.")
 
     def _detener_lectura(self) -> None:
         """Detiene la reproducción en curso y pide al hilo que aborte."""
         self._lectura_cancelada = True
         self.motor.detener_reproduccion()
 
+    def _carpeta_wav_base(self) -> str:
+        """Carpeta por defecto para el WAV de lectura (visible en la pestaña)."""
+        destino = self.cfg.grabacion.carpeta_destino.strip()
+        if destino:
+            carpeta = Path(destino)
+        else:
+            carpeta = DATA_DIR / "lectura"
+        return str(carpeta)
+
     def _ruta_wav_salida(self) -> Path:
-        """Ruta destino del WAV de lectura (data/lectura/lectura_<ts>.wav)."""
+        """Ruta destino del WAV de lectura con fecha/hora en el nombre."""
         from datetime import datetime
-        carpeta = DATA_DIR / "lectura"
+        carpeta = Path(self.pestana_lectura.carpeta_destino
+                       or self._carpeta_wav_base())
         nombre = f"lectura_{datetime.now():%Y%m%d_%H%M%S}.wav"
         return carpeta / nombre
 
