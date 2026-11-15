@@ -1,0 +1,24 @@
+# dependencies
+node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# producción
+/build
+
+# base de datos local de la plantilla (la app no usa BD)
+db/
+*.db
+
+# logs
+*.log
+dev.log
+server.log
+
+# misc
+.DS_Store
+*.pem
+.env*
