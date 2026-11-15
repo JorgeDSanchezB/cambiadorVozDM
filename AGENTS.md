@@ -7,6 +7,7 @@ This repo is a **deployment-sandbox template + the real app**, not a single cohe
 - **Root (Next.js scaffold)** — Next 16 / shadcn / Prisma(SQLite) + `.zscripts/` deploy pipeline (standalone Next + Caddy + Python runtime bundling, targets `/home/z/my-project`). Mostly unused template infra; `src/app/page.tsx` is a placeholder and `prisma/schema.prisma` is the default User/Post. Don't assume you need to touch this for app work.
 - **`voz_dnd/` — the real, actively-developed project**: real-time D&D voice changer (Python, PyQt6, sounddevice, numpy/scipy). All recent/future work lives here.
 - **`cambiador-voz-dnd/`** — an OLDER sibling of `voz_dnd` with a different package layout (`dominio/`, `aplicacion/`, `infraestructura/`). Both are tracked in git. **Edit `voz_dnd/`, not `cambiador-voz-dnd/`** unless the task explicitly says otherwise.
+- **`web/` (solo rama `feat/web-app`)** — versión web de la app (Next.js 16 + React + Web Audio/AudioWorklet), espejo funcional de `voz_dnd` que vive únicamente en esa rama. Ver "Sincronización entre ramas" más abajo.
 
 ## voz_dnd: running & verifying
 
@@ -38,6 +39,41 @@ The venv is **Python 3.14**. The `rvc` package, `numba`, and `tts-with-rvc-onnx`
 repositorio **sin autorización explícita del usuario**. Aunque se te pida en
 medio de una tarea, detente y espera confirmación explícita antes de tocar el
 historial o el remoto.
+
+## Sincronización entre ramas: escritorio ↔ web (OBLIGATORIA)
+
+El proyecto vive en DOS ramas espejo que deben mantener paridad funcional:
+
+- **`main`** → aplicación de escritorio (`voz_dnd/`, Python + PyQt6).
+- **`feat/web-app`** → versión web (`web/`, Next.js 16 + React + Web Audio),
+  que además contiene TODO lo de `main` (`voz_dnd/`, `docs/`, README) en las
+  mismas rutas.
+
+**Regla del espejo**: todo cambio funcional (nueva voz, nuevo parámetro DSP,
+corrección de un efecto, límites de config, decisiones y docs) debe
+reflejarse **igual en ambas ramas**. En concreto:
+
+1. Los archivos compartidos existen con la MISMA ruta en las dos ramas →
+   aplica el mismo commit (cherry-pick) o rehazlo de forma equivalente;
+   nunca dejes un cambio funcional en una sola rama.
+2. La cadena DSP tiene DOS implementaciones matemáticamente equivalentes:
+   - Escritorio: `voz_dnd/app/domain/efectos.py`
+   - Web: `web/public/worklets/cambiador-voz.js` (AudioWorklet)
+   Un cambio en una exige el espejo inmediato en la otra (mismo orden de
+   cadena, mismas constantes de diseño y mismas fórmulas).
+3. El catálogo de voces de la web se GENERA, no se copia a mano:
+   `python3 web/scripts/sincronizar_voces.py` lee
+   `voz_dnd/data/voces/*.json` y produce `web/src/data/voces.json` (y
+   `web/src/data/parametros.json` desde `voz_dnd/data/parametros.json`).
+   Tras cambiar una voz en cualquiera de las dos ramas: cherry-pick a la
+   otra y re-ejecutar el script en la rama web.
+4. Verificación antes de dar por cerrado un cambio:
+   - Escritorio: `cd voz_dnd && python -m unittest discover -s tests`
+   - Web: `cd web && bun install && bun run lint` (+ `bun run dev` y prueba
+     en navegador; el entorno de despliegue real es el sandbox que sirve
+     esta misma app).
+5. Si un cambio solo aplica a una plataforma (p. ej., GUI), dilo en el
+   mensaje del commit para que el árbitro sepa que no requiere espejo.
 
 ## Style conventions
 
