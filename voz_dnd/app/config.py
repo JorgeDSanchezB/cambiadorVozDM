@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 BUFFERS_VALIDOS = (128, 256, 512, 1024)
 SAMPLE_RATES_VALIDOS = (44100, 48000)
+TEMAS_VALIDOS = ("oscuro", "claro")   # nombres canónicos (ver app/gui/tema.py)
 
 
 @dataclass
@@ -125,7 +126,8 @@ class RepoConfig:
         if cfg.audio.sample_rate not in SAMPLE_RATES_VALIDOS:
             avisos.append(f"Sample rate {cfg.audio.sample_rate} no válido; se usó 48000.")
             cfg.audio.sample_rate = 48000
-        if cfg.ui.tema not in ("oscuro", "claro"):
+        if cfg.ui.tema not in TEMAS_VALIDOS:
+            avisos.append(f"Tema {cfg.ui.tema!r} no válido; se usó 'oscuro'.")
             cfg.ui.tema = "oscuro"
         return cfg, avisos
 
