@@ -220,7 +220,19 @@ class MotorAudio:
 
     # --------------------------- configuración --------------------------- #
     def aplicar_config_audio(self, cfg: ConfigApp) -> None:
-        """Cambia buffer/dispositivos en caliente: reinicia el stream."""
+        """Cambia buffer/dispositivos en caliente: reinicia el stream.
+
+        Si hay una grabación en curso se RECHAZA el cambio con error claro:
+        reiniciar el stream y recrear el GestorGrabacion dejaría huérfano
+        el audio acumulado y la sesión se perdería (regla: el audio nunca
+        se pierde). La GUI ya captura la excepción y muestra el banner; la
+        config queda guardada y se aplicará en el próximo arranque.
+        """
+        if self.grabador.activo:
+            raise RuntimeError(
+                "Hay una grabación en curso: detén la grabación antes de "
+                "cambiar los ajustes de audio. (Los ajustes quedan guardados "
+                "y se aplicarán al reiniciar la app.)")
         estaba_activo = self._stream is not None
         if estaba_activo:
             self.detener()
