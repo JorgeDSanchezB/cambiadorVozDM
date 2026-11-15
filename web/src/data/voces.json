@@ -1,0 +1,407 @@
+{
+  "version": 1,
+  "generado_por": "web/scripts/sincronizar_voces.py",
+  "fuente": "voz_dnd/data/voces",
+  "voces": [
+    {
+      "id": "55555555-5555-4555-8555-555555555505",
+      "nombre": "Bandido",
+      "tipo": "DSP",
+      "icono": "🗡️",
+      "color": "#6b4a2a",
+      "atajo": "F8",
+      "parametros_dsp": {
+        "pitch_semitonos": -2.5,
+        "formant_shift": 1.1,
+        "reverb_room_size": 0.1,
+        "reverb_damping": 0.5,
+        "distortion_drive": 0.12,
+        "gain_db": 1.5,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 3.0,
+        "eq_mid_db": 0.0,
+        "eq_high_db": -1.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555506",
+      "nombre": "Bardo Elocuente",
+      "tipo": "DSP",
+      "icono": "🎵",
+      "color": "#8a6a2a",
+      "atajo": "F9",
+      "parametros_dsp": {
+        "pitch_semitonos": 1.0,
+        "formant_shift": 0.95,
+        "reverb_room_size": 0.35,
+        "reverb_damping": 0.5,
+        "distortion_drive": 0.0,
+        "gain_db": 1.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": -1.0,
+        "eq_mid_db": 2.5,
+        "eq_high_db": 2.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555501",
+      "nombre": "Chica Inocente",
+      "tipo": "DSP",
+      "icono": "👧",
+      "color": "#d4a0c0",
+      "atajo": "F4",
+      "parametros_dsp": {
+        "pitch_semitonos": 4.0,
+        "formant_shift": 0.8,
+        "reverb_room_size": 0.05,
+        "reverb_damping": 0.7,
+        "distortion_drive": 0.0,
+        "gain_db": 1.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": -3.0,
+        "eq_mid_db": 2.0,
+        "eq_high_db": 3.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555510",
+      "nombre": "Dios Imponente",
+      "tipo": "DSP",
+      "icono": "⚡",
+      "color": "#1a1a4a",
+      "atajo": "Shift+F1",
+      "parametros_dsp": {
+        "pitch_semitonos": -7.0,
+        "formant_shift": 1.45,
+        "reverb_room_size": 0.6,
+        "reverb_damping": 0.25,
+        "distortion_drive": 0.05,
+        "gain_db": 4.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 6.0,
+        "eq_mid_db": 0.0,
+        "eq_high_db": -2.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555511",
+      "nombre": "Dios Jovial",
+      "tipo": "DSP",
+      "icono": "☀️",
+      "color": "#c8a020",
+      "atajo": "Shift+F2",
+      "parametros_dsp": {
+        "pitch_semitonos": -3.0,
+        "formant_shift": 1.2,
+        "reverb_room_size": 0.4,
+        "reverb_damping": 0.4,
+        "distortion_drive": 0.0,
+        "gain_db": 2.5,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 3.0,
+        "eq_mid_db": 2.0,
+        "eq_high_db": 1.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555512",
+      "nombre": "Diosa",
+      "tipo": "DSP",
+      "icono": "🌙",
+      "color": "#4a2a6a",
+      "atajo": "Shift+F3",
+      "parametros_dsp": {
+        "pitch_semitonos": 3.5,
+        "formant_shift": 0.9,
+        "reverb_room_size": 0.5,
+        "reverb_damping": 0.35,
+        "distortion_drive": 0.0,
+        "gain_db": 1.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": -1.0,
+        "eq_mid_db": 1.0,
+        "eq_high_db": 3.0
+      }
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "nombre": "Dragón Ancestral",
+      "tipo": "DSP",
+      "icono": "🐉",
+      "color": "#7a3b2e",
+      "atajo": "F2",
+      "parametros_dsp": {
+        "pitch_semitonos": -6.0,
+        "formant_shift": 1.35,
+        "reverb_room_size": 0.45,
+        "reverb_damping": 0.35,
+        "distortion_drive": 0.15,
+        "gain_db": 0.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 4.0,
+        "eq_mid_db": -1.0,
+        "eq_high_db": 0.0
+      }
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "nombre": "Goblin Mercader",
+      "tipo": "DSP",
+      "icono": "👺",
+      "color": "#5a7a3b",
+      "atajo": "F1",
+      "parametros_dsp": {
+        "pitch_semitonos": 5.5,
+        "formant_shift": 0.75,
+        "reverb_room_size": 0.08,
+        "reverb_damping": 0.6,
+        "distortion_drive": 0.15,
+        "gain_db": 2.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": -2.0,
+        "eq_mid_db": 3.0,
+        "eq_high_db": 1.5
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555515",
+      "nombre": "Goku (Mario Castañeda)",
+      "tipo": "DSP",
+      "icono": "🟠",
+      "color": "#e07020",
+      "atajo": "Shift+F6",
+      "parametros_dsp": {
+        "pitch_semitonos": 1.0,
+        "formant_shift": 0.92,
+        "reverb_room_size": 0.06,
+        "reverb_damping": 0.65,
+        "distortion_drive": 0.0,
+        "gain_db": 2.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 2.0,
+        "eq_mid_db": 2.5,
+        "eq_high_db": 1.5
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555514",
+      "nombre": "Héroe",
+      "tipo": "DSP",
+      "icono": "⚔️",
+      "color": "#2a4a7a",
+      "atajo": "Shift+F5",
+      "parametros_dsp": {
+        "pitch_semitonos": -1.5,
+        "formant_shift": 1.08,
+        "reverb_room_size": 0.15,
+        "reverb_damping": 0.55,
+        "distortion_drive": 0.0,
+        "gain_db": 2.5,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 3.0,
+        "eq_mid_db": 1.0,
+        "eq_high_db": 0.5
+      }
+    },
+    {
+      "id": "77777777-7777-4777-8777-777777777701",
+      "nombre": "IA Demo",
+      "tipo": "IA",
+      "icono": "🤖",
+      "color": "#7a3b6b",
+      "atajo": "F11",
+      "parametros_dsp": {
+        "pitch_semitonos": 0.0,
+        "formant_shift": 1.0,
+        "reverb_room_size": 0.12,
+        "reverb_damping": 0.4,
+        "distortion_drive": 0.0,
+        "gain_db": 0.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 0.0,
+        "eq_mid_db": 0.0,
+        "eq_high_db": 0.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555513",
+      "nombre": "Mujer Decidida",
+      "tipo": "DSP",
+      "icono": "💪",
+      "color": "#a04060",
+      "atajo": "Shift+F4",
+      "parametros_dsp": {
+        "pitch_semitonos": 2.5,
+        "formant_shift": 0.92,
+        "reverb_room_size": 0.08,
+        "reverb_damping": 0.6,
+        "distortion_drive": 0.0,
+        "gain_db": 2.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 1.0,
+        "eq_mid_db": 2.0,
+        "eq_high_db": 0.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555507",
+      "nombre": "Mujer Madura",
+      "tipo": "DSP",
+      "icono": "👩",
+      "color": "#a06080",
+      "atajo": "F10",
+      "parametros_dsp": {
+        "pitch_semitonos": 3.0,
+        "formant_shift": 0.88,
+        "reverb_room_size": 0.08,
+        "reverb_damping": 0.6,
+        "distortion_drive": 0.0,
+        "gain_db": 0.5,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": -1.0,
+        "eq_mid_db": 1.5,
+        "eq_high_db": 0.5
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "nombre": "Neutral",
+      "tipo": "DSP",
+      "icono": "🛡️",
+      "color": "#4a5d3a",
+      "atajo": null,
+      "parametros_dsp": {
+        "pitch_semitonos": 0.0,
+        "formant_shift": 1.0,
+        "reverb_room_size": 0.0,
+        "reverb_damping": 0.5,
+        "distortion_drive": 0.0,
+        "gain_db": 0.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 0.0,
+        "eq_mid_db": 0.0,
+        "eq_high_db": 0.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555502",
+      "nombre": "Orco",
+      "tipo": "DSP",
+      "icono": "👹",
+      "color": "#4a6b2a",
+      "atajo": "F5",
+      "parametros_dsp": {
+        "pitch_semitonos": -5.0,
+        "formant_shift": 1.4,
+        "reverb_room_size": 0.12,
+        "reverb_damping": 0.4,
+        "distortion_drive": 0.25,
+        "gain_db": 2.0,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 5.0,
+        "eq_mid_db": 2.0,
+        "eq_high_db": -2.0
+      }
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "nombre": "Tabernero",
+      "tipo": "DSP",
+      "icono": "🍺",
+      "color": "#6b5a2e",
+      "atajo": "F3",
+      "parametros_dsp": {
+        "pitch_semitonos": -1.5,
+        "formant_shift": 1.08,
+        "reverb_room_size": 0.22,
+        "reverb_damping": 0.5,
+        "distortion_drive": 0.0,
+        "gain_db": 1.5,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 2.0,
+        "eq_mid_db": -1.0,
+        "eq_high_db": -1.5
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555509",
+      "nombre": "Viejita",
+      "tipo": "DSP",
+      "icono": "👵",
+      "color": "#9a7a8a",
+      "atajo": "F12",
+      "parametros_dsp": {
+        "pitch_semitonos": 5.0,
+        "formant_shift": 0.82,
+        "reverb_room_size": 0.06,
+        "reverb_damping": 0.7,
+        "distortion_drive": 0.0,
+        "gain_db": -1.5,
+        "ring_mod_freq": 25.0,
+        "eq_low_db": -3.0,
+        "eq_mid_db": 0.5,
+        "eq_high_db": -1.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555508",
+      "nombre": "Viejito",
+      "tipo": "DSP",
+      "icono": "👴",
+      "color": "#8a8a6a",
+      "atajo": "F11",
+      "parametros_dsp": {
+        "pitch_semitonos": 3.5,
+        "formant_shift": 0.85,
+        "reverb_room_size": 0.05,
+        "reverb_damping": 0.7,
+        "distortion_drive": 0.05,
+        "gain_db": -1.0,
+        "ring_mod_freq": 30.0,
+        "eq_low_db": -2.0,
+        "eq_mid_db": 1.0,
+        "eq_high_db": -1.5
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555503",
+      "nombre": "Villano Elegante",
+      "tipo": "DSP",
+      "icono": "🎩",
+      "color": "#2a1a3a",
+      "atajo": "F6",
+      "parametros_dsp": {
+        "pitch_semitonos": -2.0,
+        "formant_shift": 1.12,
+        "reverb_room_size": 0.3,
+        "reverb_damping": 0.55,
+        "distortion_drive": 0.0,
+        "gain_db": 0.5,
+        "ring_mod_freq": 0.0,
+        "eq_low_db": 2.0,
+        "eq_mid_db": 1.5,
+        "eq_high_db": 1.0
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555504",
+      "nombre": "Villano Salvaje",
+      "tipo": "DSP",
+      "icono": "💀",
+      "color": "#5a1a1a",
+      "atajo": "F7",
+      "parametros_dsp": {
+        "pitch_semitonos": -4.0,
+        "formant_shift": 1.25,
+        "reverb_room_size": 0.18,
+        "reverb_damping": 0.3,
+        "distortion_drive": 0.35,
+        "gain_db": 3.0,
+        "ring_mod_freq": 45.0,
+        "eq_low_db": 4.0,
+        "eq_mid_db": -2.0,
+        "eq_high_db": -1.0
+      }
+    }
+  ]
+}
