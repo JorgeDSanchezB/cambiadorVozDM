@@ -72,6 +72,35 @@ class TestRutaFfmpegInvalida(unittest.TestCase):
 class TestDegradacionEnCascada(unittest.TestCase):
     """MP3 falla → WAV; WAV falla → WAV en temporal; todo falla → memoria."""
 
+    def test_carpeta_destino_inutilizable_rescata_en_temporal(self):
+        """Carpeta ocupada por un FICHERO (mkdir imposible) → temporal.
+
+        Antes esta excepción saltaba por encima de la cascada y nunca se
+        intentaba el WAV en temporal (hallazgo del árbitro, defecto menor 2).
+        """
+        with tempfile.TemporaryDirectory() as td:
+            ocupador = Path(td) / "ocupado"
+            ocupador.write_text("soy un fichero", encoding="utf-8")
+            gr = GestorGrabacion(
+                ConfigGrabacion(carpeta_destino=str(ocupador)), 48000)
+            _grabar(gr)
+            ruta, aviso = gr.detener_y_exportar()
+            self.assertIsNotNone(ruta, "debe rescatar la sesión en temporal")
+            self.assertEqual(ruta.suffix, ".wav")
+            self.assertIn(tempfile.gettempdir(), str(ruta))
+            self.assertIn("carpeta de grabación", aviso)
+
+    def test_patron_de_nombre_roto_rescata_en_temporal(self):
+        """Un patron_nombre inválido en config no puede costar la sesión."""
+        with tempfile.TemporaryDirectory() as td:
+            gr = GestorGrabacion(
+                ConfigGrabacion(carpeta_destino=td, patron_nombre="{roto"),
+                48000)
+            _grabar(gr)
+            ruta, aviso = gr.detener_y_exportar()
+            self.assertIsNotNone(ruta)
+            self.assertEqual(ruta.suffix, ".wav")
+
     def test_fallo_mp3_cae_a_wav(self):
         with tempfile.TemporaryDirectory() as td:
             gr = GestorGrabacion(ConfigGrabacion(carpeta_destino=td), 48000)

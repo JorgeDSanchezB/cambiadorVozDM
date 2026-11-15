@@ -21,15 +21,19 @@ se descarta cuando una exportación tiene éxito**.
 
 1. `_hay_ffmpeg()` valida la ruta configurada; si no existe la ignora con
    aviso y cae al ffmpeg del PATH (y sanea `AudioSegment.converter`).
-2. MP3 → WAV → WAV en el directorio temporal del sistema.
-3. Si todo falla: los bloques se conservan en memoria y el mensaje indica
-   cómo reintentar (`detener_y_exportar` es idempotente para el reintento).
+2. Carpeta destino o patrón de nombre rotos → directo a la vía 3.
+3. MP3 → WAV → WAV en el directorio temporal del sistema (un MP3 que
+   falla a medias no deja residuo junto al WAV de rescate).
+4. Si todo falla: los bloques se conservan en memoria y la ventana de
+   grabación ofrece **«Reintentar exportación»** (el reintento es
+   alcanzable desde la GUI; pulsar «Grabar» de nuevo descartaría el audio
+   rescatado, y el diálogo lo avisa).
 
 ## Alternativas descartadas
 
 - **Reintentar automáticamente en bucle**: puede colgar el hilo de la GUI
   ante un fallo persistente (disco lleno). Se prefiere un único intento
-  por llamada con degradación.
+  por llamada con degradación y reintento manual explícito.
 - **Encolar bloques a disco durante la grabación** (streaming a WAV): más
   robusto ante un crash del proceso, pero añade I/O en el camino del tap
   (riesgo RT) y complejidad de rotación. Coste > beneficio para sesiones
@@ -39,6 +43,7 @@ se descarta cuando una exportación tiene éxito**.
 
 - El WAV en temporal usa espacio en el disco del sistema si la carpeta
   destino falla; se avisa con la ruta exacta.
-- El reintento tras "todo falló" depende de que la GUI vuelva a llamar a
-  `detener_y_exportar` (hoy: volver a grabar y detener). Limitación
-  documentada, no se añade botón de reintento (anti-sobreingeniería).
+- El reintento en memoria solo vive mientras el proceso no se cierre ni
+  se vuelva a grabar (limitación aceptada: escenario de doble fallo de
+  escritura, corregible por el usuario cambiando la carpeta en Ajustes y
+  reintentando).

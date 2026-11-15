@@ -87,7 +87,8 @@ class GestorGrabacion:
         except Exception as exc:  # noqa: BLE001 — última barrera, nunca lanza
             log.exception("Fallo exportando la grabación")
             return None, (f"No se pudo exportar: {exc}. El audio capturado "
-                          f"se conserva en memoria; detén y exporta de nuevo.")
+                          f"se conserva en memoria; usa «Reintentar "
+                          f"exportación» cuando hayas corregido la causa.")
 
     # ------------------------------ exportación -------------------------- #
     def _hay_ffmpeg(self) -> tuple[bool, str | None]:
@@ -125,7 +126,8 @@ class GestorGrabacion:
         """Exporta con degradación en cascada: MP3 → WAV → WAV en temporal.
 
         El audio capturado (`_bloques`) solo se descarta si alguna vía tiene
-        éxito; si todas fallan se conserva en memoria para reintentar.
+        éxito; si todas fallan se conserva en memoria para reintentar (la
+        GUI ofrece «Reintentar exportación» en la ventana de grabación).
         """
         if not self._bloques:
             return None, "No se capturó audio para grabar."
@@ -134,8 +136,17 @@ class GestorGrabacion:
         audio = np.clip(audio.astype(np.float64), -1.0, 1.0)
         pcm = (audio * 32767.0).astype(np.int16)
 
-        carpeta = self._resolver_carpeta()
-        ruta_base = carpeta / self._nombre_archivo()
+        # La carpeta o el patrón de nombre pueden fallar (permisos, ruta
+        # ocupada por un fichero, patrón roto en config): degradación
+        # directa al WAV en temporal, igual que el resto de la cascada.
+        try:
+            carpeta = self._resolver_carpeta()
+            ruta_base = carpeta / self._nombre_archivo()
+        except Exception as exc:  # noqa: BLE001 — destino no utilizable
+            log.exception("Carpeta de grabación no utilizable")
+            return self._rescatar_en_temporal(
+                pcm, [f"No se pudo usar la carpeta de grabación ({exc})."])
+
         hay_ffmpeg, aviso_ffmpeg = self._hay_ffmpeg()
         avisos: list[str] = ([aviso_ffmpeg] if aviso_ffmpeg else [])
 
@@ -158,22 +169,32 @@ class GestorGrabacion:
                                   "Ajustes.")
             except Exception as exc:  # noqa: BLE001
                 log.exception("Exportación WAV falló en %s", carpeta)
-                ruta = self._temporal_wav(pcm)
-                if ruta is not None:
-                    avisos.append(f"No se pudo escribir en {carpeta} ({exc}). "
-                                  f"La sesión se guardó en {ruta} para no "
-                                  f"perderla.")
-                else:
-                    # Última instancia: audio conservado en memoria.
-                    return None, (f"No se pudo exportar la grabación ({exc}). "
-                                  f"El audio capturado se conserva en memoria; "
-                                  f"detén y exporta de nuevo para reintentar.")
+                avisos.append(f"No se pudo escribir en {carpeta} ({exc}).")
+                return self._rescatar_en_temporal(pcm, avisos)
 
         if ruta is not None:
             self._bloques.clear()
             self._frames_acumulados = 0
             log.info("Grabación exportada: %s", ruta)
         return ruta, (" ".join(avisos) if avisos else None)
+
+    def _rescatar_en_temporal(self, pcm: np.ndarray,
+                              avisos: list[str]) -> tuple[Path | None, str | None]:
+        """Último recurso de la cascada: WAV en el temporal del sistema.
+
+        Si ni siquiera eso es posible, el audio queda en memoria (los
+        bloques NO se descartan) y el aviso indica cómo reintentarlo.
+        """
+        ruta = self._temporal_wav(pcm)
+        if ruta is not None:
+            avisos.append(f"La sesión se guardó en {ruta} para no perderla.")
+            self._bloques.clear()
+            self._frames_acumulados = 0
+            log.info("Grabación rescatada en temporal: %s", ruta)
+            return ruta, " ".join(avisos)
+        return None, (" ".join(avisos) + " El audio capturado se conserva "
+                      "en memoria; usa «Reintentar exportación» en la "
+                      "ventana de grabación cuando hayas corregido la causa.")
 
     def _exportar_mp3(self, pcm: np.ndarray, ruta_base: Path) -> Path:
         from pydub import AudioSegment  # import diferido
@@ -182,8 +203,14 @@ class GestorGrabacion:
         ruta = ruta_base.with_suffix(".mp3")
         # ffmpeg acepta "192k"; la forma "192kbps" falla en versiones
         # recientes de libmp3lame (probado con ffmpeg 7.x).
-        segmento.export(str(ruta), format="mp3",
-                        bitrate=f"{self._cfg.bitrate_kbps}k")
+        try:
+            segmento.export(str(ruta), format="mp3",
+                            bitrate=f"{self._cfg.bitrate_kbps}k")
+        except Exception:
+            # No deja un MP3 a medias junto al WAV de rescate (confusión
+            # garantizada: dos archivos con el mismo nombre y base distinta).
+            ruta.unlink(missing_ok=True)
+            raise
         return ruta
 
     def _exportar_wav(self, pcm: np.ndarray, ruta_base: Path) -> Path:
@@ -196,16 +223,19 @@ class GestorGrabacion:
         return ruta
 
     def _temporal_wav(self, pcm: np.ndarray) -> Path | None:
-        """Último recurso: WAV en el directorio temporal del sistema."""
+        """WAV en el directorio temporal del sistema (último recurso).
+
+        Usa un nombre PROPIO (no el patrón configurable): la vía de rescate
+        no puede depender de la misma configuración que pudo causar el fallo.
+        """
         try:
             ruta = (Path(tempfile.gettempdir())
-                    / Path(self._nombre_archivo()).with_suffix(".wav"))
+                    / f"voz_dnd_rescate_{datetime.now():%Y%m%d_%H%M%S}.wav")
             with wave.open(str(ruta), "wb") as w:
                 w.setnchannels(1)
                 w.setsampwidth(2)
                 w.setframerate(self._sr)
                 w.writeframes(pcm.tobytes())
-            log.warning("Grabación rescatada en temporal: %s", ruta)
             return ruta
         except Exception:  # noqa: BLE001
             log.exception("Ni siquiera el WAV temporal pudo escribirse")

@@ -490,7 +490,24 @@ class VentanaPrincipal(QMainWindow):
         self.boton_rec.setText("🎤 Grabar")
         self.etiqueta_reloj.setText("⏺ 00:00:00")
         if ruta is None:
+            # El audio sigue en memoria (invariante del GestorGrabacion):
+            # se ofrece un reintento real en vez de solo el error.
             self.banner.mostrar_error(aviso or "No se pudo exportar la grabación.")
+            caja = QMessageBox(self)
+            caja.setWindowTitle("Grabación no exportada")
+            caja.setIcon(QMessageBox.Icon.Warning)
+            caja.setText(f"{aviso or 'No se pudo exportar la grabación.'}\n\n"
+                         "El audio capturado sigue en memoria mientras no "
+                         "vuelvas a pulsar «Grabar».")
+            boton_reintentar = caja.addButton(
+                "Reintentar exportación", QMessageBox.ButtonRole.ActionRole)
+            caja.addButton(QMessageBox.StandardButton.Ok)
+            caja.exec()
+            if caja.clickedButton() is boton_reintentar:
+                self.boton_rec.setEnabled(False)
+                self.boton_rec.setText("⏳ Exportando…")
+                threading.Thread(target=self._exportar_en_hilo,
+                                 daemon=True).start()
             return
         texto = f"Grabación guardada en:\n{ruta}"
         if aviso:
