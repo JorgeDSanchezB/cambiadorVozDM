@@ -156,6 +156,52 @@ class TestDegradacionEnCascada(unittest.TestCase):
             self.assertIsNotNone(ruta2)
             self.assertIn(ruta2.suffix, (".wav", ".mp3"))
 
+    def test_actualizar_config_permite_rescatar_con_otra_carpeta(self):
+        """Cambio de carpeta en Ajustes → el reintento exporta a la nueva.
+
+        Remed documented en decisión 004: sin recrear el grabador, el
+        audio pendiente se exporta a la carpeta recién elegida.
+        """
+        with tempfile.TemporaryDirectory() as td_mala, \
+                tempfile.TemporaryDirectory() as td_buena:
+            gr = GestorGrabacion(
+                ConfigGrabacion(carpeta_destino=td_mala), 48000)
+            _grabar(gr)
+            # Fallo total en la carpeta original.
+            with mock.patch.object(
+                    GestorGrabacion, "_hay_ffmpeg",
+                    return_value=(False, None)), \
+                 mock.patch.object(
+                    GestorGrabacion, "_exportar_wav",
+                    side_effect=OSError("sin permisos")), \
+                 mock.patch.object(
+                    GestorGrabacion, "_temporal_wav",
+                    return_value=None):
+                ruta, _ = gr.detener_y_exportar()
+            self.assertIsNone(ruta)
+            self.assertGreater(gr.duracion(), 0.0)
+            # El usuario cambia la carpeta en Ajustes (GUI → actualizar_config)
+            # y reintenta: la sesión sale en la carpeta nueva.
+            gr.actualizar_config(ConfigGrabacion(carpeta_destino=td_buena))
+            with mock.patch.object(
+                    GestorGrabacion, "_hay_ffmpeg",
+                    return_value=(False, None)):
+                ruta2, _ = gr.detener_y_exportar()
+            self.assertIsNotNone(ruta2)
+            self.assertEqual(ruta2.parent, Path(td_buena))
+            self.assertEqual(gr.duracion(), 0.0)
+
+    def test_dos_rescates_no_se_pisan(self):
+        """Nombres de rescate con microsegundos: sin colisión en el mismo segundo."""
+        pcm = np.zeros(16, dtype=np.int16)
+        with tempfile.TemporaryDirectory() as td:
+            gr = GestorGrabacion(ConfigGrabacion(carpeta_destino=td), 48000)
+            a = gr._temporal_wav(pcm)
+            b = gr._temporal_wav(pcm)
+            self.assertIsNotNone(a)
+            self.assertIsNotNone(b)
+            self.assertNotEqual(a, b, "dos rescates inmediatos deben no coincidir")
+
     def test_exito_descarta_bloques(self):
         with tempfile.TemporaryDirectory() as td:
             gr = GestorGrabacion(ConfigGrabacion(carpeta_destino=td), 48000)

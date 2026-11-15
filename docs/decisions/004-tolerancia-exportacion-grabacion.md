@@ -44,6 +44,9 @@ se descarta cuando una exportación tiene éxito**.
 - El WAV en temporal usa espacio en el disco del sistema si la carpeta
   destino falla; se avisa con la ruta exacta.
 - El reintento en memoria solo vive mientras el proceso no se cierre ni
-  se vuelva a grabar (limitación aceptada: escenario de doble fallo de
-  escritura, corregible por el usuario cambiando la carpeta en Ajustes y
-  reintentando).
+  se vuelva a grabar. Mientras exista audio pendiente, un cambio de
+  ajustes de AUDIO se rechaza con error claro (`aplicar_config_audio`
+  no recrea el grabador); un cambio de carpeta/calidad/ffmpeg en Ajustes
+  SÍ se propaga al grabador vivo (`actualizar_config`) para que el
+  remedio documentado —cambiar la carpeta y reintentar— funcione de
+  verdad.

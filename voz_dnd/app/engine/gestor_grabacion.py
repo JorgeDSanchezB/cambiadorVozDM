@@ -67,6 +67,16 @@ class GestorGrabacion:
             self._activo = False  # auto-stop (la GUI lo detecta por polling)
 
     # --------------------------- ciclo grabación ------------------------- #
+    def actualizar_config(self, cfg: ConfigGrabacion, ffmpeg_ruta: str = "") -> None:
+        """Sustituye la config de grabación SIN tocar el audio acumulado.
+
+        Permite que un cambio de carpeta/calidad/ffmpeg en Ajustes llegue
+        al grabador vivo (p. ej. para rescatar una sesión pendiente con una
+        carpeta válida) sin recrear el objeto ni perder los bloques.
+        """
+        self._cfg = cfg
+        self._ffmpeg_ruta = ffmpeg_ruta
+
     def iniciar(self) -> None:
         self._bloques.clear()
         self._frames_acumulados = 0
@@ -230,7 +240,7 @@ class GestorGrabacion:
         """
         try:
             ruta = (Path(tempfile.gettempdir())
-                    / f"voz_dnd_rescate_{datetime.now():%Y%m%d_%H%M%S}.wav")
+                    / f"voz_dnd_rescate_{datetime.now():%Y%m%d_%H%M%S_%f}.wav")
             with wave.open(str(ruta), "wb") as w:
                 w.setnchannels(1)
                 w.setsampwidth(2)

@@ -576,8 +576,17 @@ class VentanaPrincipal(QMainWindow):
     def _aplicar_config(self, cfg: ConfigApp) -> None:
         cambio_audio = (cfg.audio != self.cfg.audio)
         cambio_tema = (cfg.ui.tema != self.cfg.ui.tema)
+        cambio_grabacion = (cfg.grabacion != self.cfg.grabacion
+                            or cfg.motor.ffmpeg_ruta != self.cfg.motor.ffmpeg_ruta)
         self.cfg = cfg
         self.repo_cfg.guardar(cfg)
+        # Un cambio de carpeta/calidad/ffmpeg llega al grabador VIVO sin
+        # recrearlo: así, una sesión pendiente de exportar (p. ej. tras un
+        # fallo de escritura) puede rescatarse cambiando la carpeta en
+        # Ajustes y pulsando «Reintentar exportación» (decisión 004).
+        if cambio_grabacion:
+            self.motor.grabador.actualizar_config(
+                cfg.grabacion, ffmpeg_ruta=cfg.motor.ffmpeg_ruta)
         if cambio_tema:
             self._tema = tema_por_nombre(cfg.ui.tema)
             self.setStyleSheet(estilo_global(self._tema))

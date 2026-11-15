@@ -11,6 +11,7 @@ sin necesitar dispositivos de audio reales.
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -19,7 +20,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import ConfigApp
+from app.config import ConfigApp, ConfigGrabacion
 from app.engine.gestor_grabacion import GestorGrabacion
 from app.engine.motor_audio import MotorAudio
 from app.engine.procesador import ProcesadorBypass
@@ -51,6 +52,41 @@ class TestCambioConfigEnCaliente(unittest.TestCase):
                                return_value=(False, None)):
             ruta, _ = self.motor.grabador.detener_y_exportar()
         self.assertIsNotNone(ruta)
+
+    def test_audio_pendiente_de_exportar_bloquea_el_cambio(self):
+        """Tras un fallo total de export, el audio preservado también se protege.
+
+        Hallazgo del árbitro (ronda 2): el guard solo miraba `activo`, y
+        recrear el grabador descartaba el audio pendiente en silencio.
+        """
+        self.motor.grabador.iniciar()
+        for _ in range(5):
+            self.motor.grabador.tap(_bloque())
+        with mock.patch.object(GestorGrabacion, "_hay_ffmpeg",
+                               return_value=(False, None)), \
+             mock.patch.object(GestorGrabacion, "_exportar_wav",
+                               side_effect=OSError("disco lleno")), \
+             mock.patch.object(GestorGrabacion, "_temporal_wav",
+                               return_value=None):
+            ruta, _ = self.motor.grabador.detener_y_exportar()
+        self.assertIsNone(ruta)
+        self.assertFalse(self.motor.grabador.activo)
+        self.assertGreater(self.motor.grabador.duracion(), 0.0,
+                           "el audio pendiente debe existir tras el fallo")
+
+        with self.assertRaises(RuntimeError) as ctx:
+            self.motor.aplicar_config_audio(ConfigApp())
+        self.assertIn("pendiente de exportar", str(ctx.exception))
+        self.assertGreater(self.motor.grabador.duracion(), 0.0,
+                           "el guard debe impedir que se descarte el audio")
+
+        # ...pero un cambio de carpeta/calidad SÍ llega (remedio de 004):
+        self.motor.grabador.actualizar_config(
+            ConfigGrabacion(carpeta_destino=tempfile.gettempdir()))
+        with mock.patch.object(GestorGrabacion, "_hay_ffmpeg",
+                               return_value=(False, None)):
+            ruta2, _ = self.motor.grabador.detener_y_exportar()
+        self.assertIsNotNone(ruta2, "el remedio documentado debe funcionar")
 
     def test_sin_grabacion_el_cambio_aplica(self):
         nueva = ConfigApp()

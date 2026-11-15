@@ -56,10 +56,14 @@ Bugs reproducidos con test y corregidos (ver `docs/decisions/` 004-006):
   id y el orden alfabético decidía al recargar. Ahora `guardar()` limpia
   residuos del mismo id, las colisiones de slug desambiguan (`-2`, `-3`) y
   los ids duplicados en disco se resuelven por archivo canónico con aviso.
-- **Cambio de ajustes de audio con grabación en curso** huérfana el audio:
-  `aplicar_config_audio()` ahora lo rechaza con error claro.
+- **Cambio de ajustes de audio con grabación en curso —o audio pendiente de
+  exportar— descartaría el audio**: `aplicar_config_audio()` lo rechaza con
+  error claro en ambos casos; el cambio de carpeta/calidad/ffmpeg SÍ llega
+  al grabador vivo (`actualizar_config`) para rescatar sesiones pendientes.
 - Constantes duplicadas (sample rates, overhead de driver) unificadas en su
   fuente única con tripwire de test; tema inválido en config.json ahora avisa.
+- **Reintento de exportación**: si toda la cascada falla, el audio queda en
+  memoria y la ventana de grabación ofrece «Reintentar exportación».
 
 ## Modo IA — estado e infraestructura
 
