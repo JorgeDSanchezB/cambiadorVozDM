@@ -8,9 +8,13 @@
 - Python del proyecto: `voz_dnd\.venv\Scripts\python.exe` (usar siempre este).
 - Arranque: `voz_dnd\iniciar_voz_dnd.bat` (o `python main.py` dentro de
   `voz_dnd\`).
-- **No hay suite de tests / CI / linter.** "Verificación" =
-  `python -m py_compile <archivos>` + smoke tests headless (importar el motor,
-  alimentar arrays sintéticos `(frames, 1)` float32, comprobar que no lanza).
+- **Suite de tests del motor (headless)**: `cd voz_dnd && python -m unittest
+  discover -s tests -v` — unittest de la librería estándar, sin
+  dependencias nuevas; no requiere micrófono ni GUI. Cubre dominio
+  (modelos, catálogo), motor (voces, grabación, lectura TTS con stub,
+  config, callback RT) y tripwires anti-duplicación de constantes.
+- **No hay CI / linter.** "Verificación" = suite anterior + `python -m
+  py_compile <archivos>` + smoke manual de la GUI en el PC Windows.
 
 ## Qué está hecho y funcionando
 
@@ -37,6 +41,29 @@
   `import torch` fallaba (todo `except ImportError: return None`); ahora ONNX
   se detecta por separado y `esta_gpu()` reporta
   `onnx_cpu → "Sin aceleración GPU · ONNX · CPU (portátil)"`.
+
+## Correcciones de la auditoría V6 (rama `chore/quality-improvements`)
+
+Bugs reproducidos con test y corregidos (ver `docs/decisions/` 004-006):
+
+- **Grabación perdida por ruta de ffmpeg inválida**: `_hay_ffmpeg()` asignaba
+  la ruta configurada a pydub sin validar; con ffmpeg en el PATH la exportación
+  MP3 moría y los bloques ya limpiados se perdían. Ahora: cascada
+  MP3 → WAV → WAV-temporal y los bloques solo se descartan tras un éxito.
+- **Lectura de textos largos superpuestos**: `sintetizar()` SUMABA los
+  fragmentos desde la muestra 0; ahora se concatenan.
+- **Renombrar una voz revertía solo**: el JSON viejo sobrevivía con el mismo
+  id y el orden alfabético decidía al recargar. Ahora `guardar()` limpia
+  residuos del mismo id, las colisiones de slug desambiguan (`-2`, `-3`) y
+  los ids duplicados en disco se resuelven por archivo canónico con aviso.
+- **Cambio de ajustes de audio con grabación en curso —o audio pendiente de
+  exportar— descartaría el audio**: `aplicar_config_audio()` lo rechaza con
+  error claro en ambos casos; el cambio de carpeta/calidad/ffmpeg SÍ llega
+  al grabador vivo (`actualizar_config`) para rescatar sesiones pendientes.
+- Constantes duplicadas (sample rates, overhead de driver) unificadas en su
+  fuente única con tripwire de test; tema inválido en config.json ahora avisa.
+- **Reintento de exportación**: si toda la cascada falla, el audio queda en
+  memoria y la ventana de grabación ofrece «Reintentar exportación».
 
 ## Modo IA — estado e infraestructura
 

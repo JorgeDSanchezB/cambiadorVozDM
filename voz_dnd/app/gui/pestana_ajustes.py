@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
 
 from app.config import (
     BUFFERS_VALIDOS,
+    SAMPLE_RATES_VALIDOS,
     ConfigApp,
     ConfigAudio,
     ConfigGrabacion,
@@ -37,13 +38,12 @@ from app.config import (
 )
 from app.domain.models import IVoiceProfile
 from app.engine.modulo_ia import ModuloIA
+from app.engine.motor_audio import OVERHEAD_DRIVER_MS
 from app.gui.tema import CLARO, Tema
 
 log = logging.getLogger(__name__)
 
-MUESTREOS = (44100, 48000)
-BITRATES_KBPS = (128, 192, 320)
-OVERHEAD_DRIVER_MS = 8.0
+BITRATES_KBPS = (128, 192, 320)   # opciones de UI (no límite del motor)
 
 
 class PestanaAjustes(QWidget):
@@ -96,9 +96,10 @@ class PestanaAjustes(QWidget):
         form_audio.addRow("Tamaño de buffer:", self.combo_buffer)
 
         self.combo_sr = QComboBox()
-        for sr in MUESTREOS:
+        for sr in SAMPLE_RATES_VALIDOS:
             self.combo_sr.addItem(f"{sr} Hz", sr)
-        self.combo_sr.setCurrentIndex(list(MUESTREOS).index(cfg.audio.sample_rate))
+        self.combo_sr.setCurrentIndex(
+            list(SAMPLE_RATES_VALIDOS).index(cfg.audio.sample_rate))
         self.combo_sr.currentIndexChanged.connect(self._refrescar_latencia)
         form_audio.addRow("Frecuencia de muestreo:", self.combo_sr)
 

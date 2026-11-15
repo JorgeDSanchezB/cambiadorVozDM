@@ -232,9 +232,11 @@ class PestanaEditor(QWidget):
         self.senal_voces_cambiadas.emit(f"Voz guardada en {ruta.name}")
 
     def _guardar_como_nueva(self, nombre_inicial: str = "") -> None:
+        texto_inicial = nombre_inicial
+        if not texto_inicial and self._voz_editada is not None:
+            texto_inicial = self._voz_editada.nombre
         nombre, ok = QInputDialog.getText(
-            self, "Nueva voz", "Nombre de la voz:",
-            text=nombre_inicial or self._voz_editada.nombre if self._voz_editada else "")
+            self, "Nueva voz", "Nombre de la voz:", text=texto_inicial)
         if not ok or not nombre.strip():
             return
         color = "#5a7a3b"

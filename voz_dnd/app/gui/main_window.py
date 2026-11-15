@@ -490,7 +490,24 @@ class VentanaPrincipal(QMainWindow):
         self.boton_rec.setText("🎤 Grabar")
         self.etiqueta_reloj.setText("⏺ 00:00:00")
         if ruta is None:
+            # El audio sigue en memoria (invariante del GestorGrabacion):
+            # se ofrece un reintento real en vez de solo el error.
             self.banner.mostrar_error(aviso or "No se pudo exportar la grabación.")
+            caja = QMessageBox(self)
+            caja.setWindowTitle("Grabación no exportada")
+            caja.setIcon(QMessageBox.Icon.Warning)
+            caja.setText(f"{aviso or 'No se pudo exportar la grabación.'}\n\n"
+                         "El audio capturado sigue en memoria mientras no "
+                         "vuelvas a pulsar «Grabar».")
+            boton_reintentar = caja.addButton(
+                "Reintentar exportación", QMessageBox.ButtonRole.ActionRole)
+            caja.addButton(QMessageBox.StandardButton.Ok)
+            caja.exec()
+            if caja.clickedButton() is boton_reintentar:
+                self.boton_rec.setEnabled(False)
+                self.boton_rec.setText("⏳ Exportando…")
+                threading.Thread(target=self._exportar_en_hilo,
+                                 daemon=True).start()
             return
         texto = f"Grabación guardada en:\n{ruta}"
         if aviso:
@@ -559,8 +576,17 @@ class VentanaPrincipal(QMainWindow):
     def _aplicar_config(self, cfg: ConfigApp) -> None:
         cambio_audio = (cfg.audio != self.cfg.audio)
         cambio_tema = (cfg.ui.tema != self.cfg.ui.tema)
+        cambio_grabacion = (cfg.grabacion != self.cfg.grabacion
+                            or cfg.motor.ffmpeg_ruta != self.cfg.motor.ffmpeg_ruta)
         self.cfg = cfg
         self.repo_cfg.guardar(cfg)
+        # Un cambio de carpeta/calidad/ffmpeg llega al grabador VIVO sin
+        # recrearlo: así, una sesión pendiente de exportar (p. ej. tras un
+        # fallo de escritura) puede rescatarse cambiando la carpeta en
+        # Ajustes y pulsando «Reintentar exportación» (decisión 004).
+        if cambio_grabacion:
+            self.motor.grabador.actualizar_config(
+                cfg.grabacion, ffmpeg_ruta=cfg.motor.ffmpeg_ruta)
         if cambio_tema:
             self._tema = tema_por_nombre(cfg.ui.tema)
             self.setStyleSheet(estilo_global(self._tema))
@@ -611,10 +637,16 @@ class VentanaPrincipal(QMainWindow):
 
     # ============================== cierre ================================= #
     def closeEvent(self, evento) -> None:  # noqa: N802 (API Qt)
-        if self._grabacion_en_curso:
+        pendiente = (self._grabacion_en_curso
+                     or self.motor.grabador.duracion() > 0.0)
+        if pendiente:
+            situacion = ("Hay una grabación en curso." if self._grabacion_en_curso
+                         else "Hay audio de una grabación pendiente de exportar "
+                              "(un export anterior falló).")
             respuesta = QMessageBox.question(
-                self, "Grabación en curso",
-                "Hay una grabación en curso. ¿Detenerla y guardarla antes de salir?",
+                self, "Grabación sin guardar",
+                f"{situacion}\n¿Exportarla antes de salir? (Si eliges No, "
+                "ese audio se perderá al cerrar.)",
                 QMessageBox.StandardButton.Yes
                 | QMessageBox.StandardButton.No
                 | QMessageBox.StandardButton.Cancel)
@@ -627,7 +659,9 @@ class VentanaPrincipal(QMainWindow):
                 if ruta is not None:
                     QMessageBox.information(self, "Grabación guardada", str(ruta))
                 elif aviso:
-                    QMessageBox.warning(self, "Grabación", aviso)
+                    QMessageBox.warning(
+                        self, "Grabación",
+                        f"{aviso}\n\nEl audio pendiente se perderá al cerrar.")
         self._detener_lectura()
         self.motor.detener()
         evento.accept()

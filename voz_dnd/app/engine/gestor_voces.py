@@ -5,6 +5,15 @@ Tolerancia a fallos:
     banner); el resto de voces carga con normalidad.
   * La voz "Neutral" se regenera sola si falta o está dañada.
   * Los valores fuera de rango se RECORTAN al rango del catálogo con aviso.
+
+Invariante de integridad (una voz = un archivo, decisión 001):
+  * Renombrar una voz borra su JSON anterior: antes el archivo viejo
+    sobrevivía con el MISMO id y, al recargar, el orden alfabético decidía
+    cuál ganaba (el renombre podía revertirse solo).
+  * Dos voces con nombres que producen el mismo slug ("Dragón!" y "dragón")
+    no se pisan: la segunda se guarda con sufijo -2, -3…
+  * Al cargar, un id duplicado (fantasma manual) se resuelve por el archivo
+    canónico (nombre == slug) y el residuo se reporta como aviso.
 """
 from __future__ import annotations
 
@@ -51,10 +60,12 @@ class GestorVoces:
         self._catalogo = catalogo
         carpeta.mkdir(parents=True, exist_ok=True)
         self._voces: dict[UUID, IVoiceProfile] = {}
+        self._rutas: dict[UUID, Path] = {}   # id → archivo real en disco
 
     # ------------------------------ carga -------------------------------- #
     def cargar_todas(self) -> CargaVoces:
         self._voces.clear()
+        self._rutas.clear()
         carga = CargaVoces()
         for archivo in sorted(self._carpeta.glob("*.json")):
             try:
@@ -64,7 +75,30 @@ class GestorVoces:
                     voz.parametros_dsp, avisos = self._catalogo.abrazar(voz.parametros_dsp)
                     for aviso in avisos:
                         carga.errores.append((archivo.name, aviso))
+                if voz.id in self._voces:
+                    # Id duplicado (p. ej. copia manual o fantasma de un
+                    # renombrado antiguo): gana el archivo canónico
+                    # (nombre == slug); el residuo se avisa, no se borra.
+                    previa = self._rutas[voz.id]
+                    if archivo.name == f"{_slug(voz.nombre)}.json":
+                        carga.errores.append((
+                            previa.name,
+                            f"Residuo con el mismo id que «{voz.nombre}»; se "
+                            f"ignora ({archivo.name} define esa voz). Vuelve a "
+                            f"guardar la voz para limpiarlo."))
+                        self._voces[voz.id] = voz
+                        self._rutas[voz.id] = archivo
+                    else:
+                        carga.errores.append((
+                            archivo.name,
+                            f"Residuo con el mismo id que «{voz.nombre}»; se "
+                            f"ignora ({previa.name} define esa voz). Vuelve a "
+                            f"guardar la voz para limpiarlo."))
+                    log.warning("Id de voz duplicado: %s vs %s",
+                                previa.name, archivo.name)
+                    continue
                 self._voces[voz.id] = voz
+                self._rutas[voz.id] = archivo
             except (json.JSONDecodeError, VozCorruptaError, ValueError,
                     KeyError, OSError) as exc:
                 carga.errores.append((archivo.name, f"Archivo dañado y omitido: {exc}"))
@@ -108,14 +142,56 @@ class GestorVoces:
             voz.parametros_dsp, _ = self._catalogo.abrazar(voz.parametros_dsp)
         elif isinstance(voz, IVoiceProfile) and voz.tipo == TIPO_IA:
             pass  # los rangos IA se validan al usar el modelo
-        ruta = self._carpeta / f"{_slug(voz.nombre)}.json"
+        ruta = self._ruta_libre(voz)
         ruta.write_text(
             json.dumps(voz.a_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         self._voces[voz.id] = voz
+        self._rutas[voz.id] = ruta
+        self._limpiar_residuos(voz.id, ruta)
         log.info("Voz guardada: %s → %s", voz.nombre, ruta.name)
         return ruta
+
+    def _ruta_libre(self, voz: IVoiceProfile) -> Path:
+        """Ruta de destino sin pisar a OTRA voz (colisión de slug).
+
+        Si `slug.json` existe con el mismo id → es la propia voz (renombre
+        de vuelta): se sobreescribe. Si existe con OTRO id → sufijo -2, -3…
+        """
+        base = _slug(voz.nombre)
+        candidata = self._carpeta / f"{base}.json"
+        numero = 1
+        while candidata.exists():
+            id_en_disco = self._id_de_archivo(candidata)
+            if id_en_disco in (None, voz.id):
+                break  # inexistente/ilegible o la propia voz: se pisa
+            numero += 1
+            candidata = self._carpeta / f"{base}-{numero}.json"
+        return candidata
+
+    def _id_de_archivo(self, ruta: Path) -> UUID | None:
+        try:
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+            return UUID(str(datos.get("id", "")))
+        except Exception:  # noqa: BLE001 — archivo ilegible: se pisa con cuidado
+            return None
+
+    def _limpiar_residuos(self, id_voz, ruta_actual: Path) -> None:
+        """Borra archivos con el MISMO id pero distinta ruta (fantasmas).
+
+        Garantiza el invariante "una voz = un archivo" (decisión 001):
+        tras un renombrado, el JSON viejo con el mismo id desaparece.
+        """
+        for archivo in self._carpeta.glob("*.json"):
+            if archivo == ruta_actual or not archivo.is_file():
+                continue
+            if self._id_de_archivo(archivo) == id_voz:
+                try:
+                    archivo.unlink()
+                    log.info("Residuo eliminado tras guardar: %s", archivo.name)
+                except OSError:
+                    log.warning("No se pudo eliminar el residuo %s", archivo.name)
 
     def eliminar(self, id_voz) -> bool:
         try:
@@ -127,8 +203,12 @@ class GestorVoces:
         voz = self._voces.pop(id_voz, None)
         if voz is None:
             return False
-        ruta = self._carpeta / f"{_slug(voz.nombre)}.json"
+        ruta = self._rutas.pop(id_voz, None) or (
+            self._carpeta / f"{_slug(voz.nombre)}.json")
         if ruta.exists():
-            ruta.unlink()
+            try:
+                ruta.unlink()
+            except OSError:
+                log.warning("No se pudo eliminar %s", ruta)
         log.info("Voz eliminada: %s", voz.nombre)
         return True

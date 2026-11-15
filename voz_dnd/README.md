@@ -42,6 +42,20 @@ pip install -r requirements.txt
 python main.py
 ```
 
+### Verificar sin micrófono (suite de tests del motor)
+
+La suite cubre dominio y motor (carga de voces, tolerancia a fallos,
+grabación, lectura TTS con stub, config) **sin dispositivos de audio**,
+con la librería estándar (`unittest`, sin dependencias nuevas):
+
+```bat
+cd voz_dnd
+python -m unittest discover -s tests -v
+```
+
+Debe terminar en `OK`. La GUI (PyQt6) y el stream real (sounddevice)
+se verifican manualmente arrancando la app.
+
 > **Importante**: usa **auriculares**. Si el micrófono "oye" tus altavoces,
 > la realimentación arruinará la transformación (y tus oídos).
 

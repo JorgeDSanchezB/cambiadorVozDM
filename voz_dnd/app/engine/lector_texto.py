@@ -81,10 +81,10 @@ class LectorTexto:
         if not fragmentos:
             raise RuntimeError("El texto no produjo audio (¿está vacío?).")
 
-        max_len = max(len(f) for f in fragmentos)
-        total = np.zeros((max_len, 1), dtype=np.float32)
-        for f in fragmentos:
-            total[: len(f)] += f.reshape(-1, 1)
+        # Los fragmentos son trozos SECUENCIALES del texto: se concatenan de
+        # principio a fin. (Antes se sumaban desde la muestra 0 y todos los
+        # fragmentos de un texto largo sonaban a la vez.)
+        total = np.concatenate(fragmentos, axis=0).astype(np.float32)
         return total, SR_EDGE
 
     # ------------------------------------------------------------------ #
