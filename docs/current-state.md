@@ -101,3 +101,20 @@ La raíz contiene un scaffold Next.js (shadcn/Prisma SQLite) + pipeline
 `.zscripts/` (standalone Next + Caddy + bundling Python, target
 `/home/z/my-project`) + `mini-services/`. Es infraestructura de plantilla;
 el trabajo de app vive en `voz_dnd/`.
+
+## Versión web (rama `feat/web-app`)
+
+- **`web/`** contiene la versión React/Next.js 16 (solo en esa rama): mismo
+  catálogo (generado con `web/scripts/sincronizar_voces.py`), mismo mapa de
+  atajos F1–F12/Shift, editor con sliders desde `parametros.json`, lectura
+  TTS por `/api/tts` (z-ai-web-dev-sdk) con respaldo `speechSynthesis`,
+  grabación post-DSP (MediaRecorder) y persistencia en `localStorage`.
+- **El DSP es un espejo 1:1** de `efectos.py` en
+  `web/public/worklets/cambiador-voz.js` (AudioWorklet): misma cadena,
+  constantes y fórmulas. La regla de espejo está en `AGENTS.md` (raíz) y el
+  detalle en `docs/decisions/008-version-web-react.md` y `web/README.md`.
+- Verificación web: `cd web && bun run lint` (+ `bun run dev` y prueba en
+  navegador). El entorno de despliegue sirve exactamente este árbol en `/`.
+- Diferencias honestas documentadas: grabación WebM/Opus en vez de MP3, RVC
+  no disponible (IA Demo degrada a `dsp_post`), voces TTS del servidor en
+  vez de edge-tts.
