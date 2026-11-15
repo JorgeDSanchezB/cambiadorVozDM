@@ -46,7 +46,11 @@ se descarta cuando una exportación tiene éxito**.
 - El reintento en memoria solo vive mientras el proceso no se cierre ni
   se vuelva a grabar. Mientras exista audio pendiente, un cambio de
   ajustes de AUDIO se rechaza con error claro (`aplicar_config_audio`
-  no recrea el grabador); un cambio de carpeta/calidad/ffmpeg en Ajustes
-  SÍ se propaga al grabador vivo (`actualizar_config`) para que el
-  remedio documentado —cambiar la carpeta y reintentar— funcione de
-  verdad.
+  no recrea el grabador) y el cierre de la app ofrece exportarlo; un
+  cambio de carpeta/calidad/ffmpeg en Ajustes SÍ se propaga al grabador
+  vivo (`actualizar_config`) para que el remedio documentado —cambiar la
+  carpeta y reintentar— funcione de verdad.
+- Un cambio de carpeta durante una grabación ACTIVA cambia el destino
+  del export a mitad de sesión (antes no surtía efecto hasta reiniciar):
+  los bloques acumulados no se tocan y la sesión completa se exporta a
+  la carpeta nueva (verificado por el árbitro); se considera aceptable.

@@ -32,7 +32,12 @@ def _bloque(frames: int = 256) -> np.ndarray:
 
 class TestCambioConfigEnCaliente(unittest.TestCase):
     def setUp(self) -> None:
+        self._td = tempfile.TemporaryDirectory()
+        self.addCleanup(self._td.cleanup)
         self.cfg = ConfigApp()          # sin stream: entorno headless
+        # Higiene: NUNCA exportar a la carpeta real del usuario
+        # (~/Music/SesionesDnD); los tests usan su propio temporal.
+        self.cfg.grabacion.carpeta_destino = self._td.name
         self.motor = MotorAudio(self.cfg, ProcesadorBypass())
 
     def test_grabacion_activa_bloquea_el_cambio(self):
@@ -82,11 +87,13 @@ class TestCambioConfigEnCaliente(unittest.TestCase):
 
         # ...pero un cambio de carpeta/calidad SÍ llega (remedio de 004):
         self.motor.grabador.actualizar_config(
-            ConfigGrabacion(carpeta_destino=tempfile.gettempdir()))
+            ConfigGrabacion(carpeta_destino=tempfile.gettempdir()),
+            ffmpeg_ruta="")
         with mock.patch.object(GestorGrabacion, "_hay_ffmpeg",
                                return_value=(False, None)):
             ruta2, _ = self.motor.grabador.detener_y_exportar()
         self.assertIsNotNone(ruta2, "el remedio documentado debe funcionar")
+        self.addCleanup(ruta2.unlink, missing_ok=True)
 
     def test_sin_grabacion_el_cambio_aplica(self):
         nueva = ConfigApp()

@@ -67,12 +67,14 @@ class GestorGrabacion:
             self._activo = False  # auto-stop (la GUI lo detecta por polling)
 
     # --------------------------- ciclo grabación ------------------------- #
-    def actualizar_config(self, cfg: ConfigGrabacion, ffmpeg_ruta: str = "") -> None:
+    def actualizar_config(self, cfg: ConfigGrabacion, ffmpeg_ruta: str) -> None:
         """Sustituye la config de grabación SIN tocar el audio acumulado.
 
         Permite que un cambio de carpeta/calidad/ffmpeg en Ajustes llegue
         al grabador vivo (p. ej. para rescatar una sesión pendiente con una
         carpeta válida) sin recrear el objeto ni perder los bloques.
+        `ffmpeg_ruta` es obligatorio a propósito: borrarla por accidente
+        con un default vacío sería un error de configuración silencioso.
         """
         self._cfg = cfg
         self._ffmpeg_ruta = ffmpeg_ruta

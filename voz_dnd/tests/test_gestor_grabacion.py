@@ -85,6 +85,7 @@ class TestDegradacionEnCascada(unittest.TestCase):
                 ConfigGrabacion(carpeta_destino=str(ocupador)), 48000)
             _grabar(gr)
             ruta, aviso = gr.detener_y_exportar()
+            self.addCleanup(ruta.unlink, missing_ok=True)  # higiene /tmp
             self.assertIsNotNone(ruta, "debe rescatar la sesión en temporal")
             self.assertEqual(ruta.suffix, ".wav")
             self.assertIn(tempfile.gettempdir(), str(ruta))
@@ -98,6 +99,7 @@ class TestDegradacionEnCascada(unittest.TestCase):
                 48000)
             _grabar(gr)
             ruta, aviso = gr.detener_y_exportar()
+            self.addCleanup(ruta.unlink, missing_ok=True)  # higiene /tmp
             self.assertIsNotNone(ruta)
             self.assertEqual(ruta.suffix, ".wav")
 
@@ -127,6 +129,7 @@ class TestDegradacionEnCascada(unittest.TestCase):
                     GestorGrabacion, "_exportar_wav",
                     side_effect=OSError("disco lleno")):
                 ruta, aviso = gr.detener_y_exportar()
+            self.addCleanup(ruta.unlink, missing_ok=True)  # higiene /tmp
             self.assertIsNotNone(ruta, "debe rescatar la sesión en temporal")
             self.assertEqual(ruta.suffix, ".wav")
             self.assertIn("perderla", aviso)
@@ -159,7 +162,7 @@ class TestDegradacionEnCascada(unittest.TestCase):
     def test_actualizar_config_permite_rescatar_con_otra_carpeta(self):
         """Cambio de carpeta en Ajustes → el reintento exporta a la nueva.
 
-        Remed documented en decisión 004: sin recrear el grabador, el
+        Remedio documentado en decisión 004: sin recrear el grabador, el
         audio pendiente se exporta a la carpeta recién elegida.
         """
         with tempfile.TemporaryDirectory() as td_mala, \
@@ -182,7 +185,8 @@ class TestDegradacionEnCascada(unittest.TestCase):
             self.assertGreater(gr.duracion(), 0.0)
             # El usuario cambia la carpeta en Ajustes (GUI → actualizar_config)
             # y reintenta: la sesión sale en la carpeta nueva.
-            gr.actualizar_config(ConfigGrabacion(carpeta_destino=td_buena))
+            gr.actualizar_config(ConfigGrabacion(carpeta_destino=td_buena),
+                                 ffmpeg_ruta="")
             with mock.patch.object(
                     GestorGrabacion, "_hay_ffmpeg",
                     return_value=(False, None)):

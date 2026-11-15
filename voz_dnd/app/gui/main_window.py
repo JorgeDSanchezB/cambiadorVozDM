@@ -637,10 +637,16 @@ class VentanaPrincipal(QMainWindow):
 
     # ============================== cierre ================================= #
     def closeEvent(self, evento) -> None:  # noqa: N802 (API Qt)
-        if self._grabacion_en_curso:
+        pendiente = (self._grabacion_en_curso
+                     or self.motor.grabador.duracion() > 0.0)
+        if pendiente:
+            situacion = ("Hay una grabación en curso." if self._grabacion_en_curso
+                         else "Hay audio de una grabación pendiente de exportar "
+                              "(un export anterior falló).")
             respuesta = QMessageBox.question(
-                self, "Grabación en curso",
-                "Hay una grabación en curso. ¿Detenerla y guardarla antes de salir?",
+                self, "Grabación sin guardar",
+                f"{situacion}\n¿Exportarla antes de salir? (Si eliges No, "
+                "ese audio se perderá al cerrar.)",
                 QMessageBox.StandardButton.Yes
                 | QMessageBox.StandardButton.No
                 | QMessageBox.StandardButton.Cancel)
@@ -653,7 +659,9 @@ class VentanaPrincipal(QMainWindow):
                 if ruta is not None:
                     QMessageBox.information(self, "Grabación guardada", str(ruta))
                 elif aviso:
-                    QMessageBox.warning(self, "Grabación", aviso)
+                    QMessageBox.warning(
+                        self, "Grabación",
+                        f"{aviso}\n\nEl audio pendiente se perderá al cerrar.")
         self._detener_lectura()
         self.motor.detener()
         evento.accept()

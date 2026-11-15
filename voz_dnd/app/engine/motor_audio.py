@@ -231,12 +231,16 @@ class MotorAudio:
         """
         pendiente = self.grabador.duracion() > 0.0
         if self.grabador.activo or pendiente:
-            motivo = ("Hay una grabación en curso" if self.grabador.activo
-                      else "Hay audio de una grabación pendiente de exportar")
+            if self.grabador.activo:
+                motivo = ("Hay una grabación en curso: detén la grabación "
+                          "antes de cambiar los ajustes de audio.")
+            else:
+                motivo = ("Hay audio de una grabación pendiente de exportar: "
+                          "reintenta la exportación antes de cambiar los "
+                          "ajustes de audio.")
             raise RuntimeError(
-                f"{motivo}: termina la grabación (o reintenta la exportación) "
-                "antes de cambiar los ajustes de audio. (Los ajustes quedan "
-                "guardados y se aplicarán al reiniciar la app.)")
+                f"{motivo} (Los ajustes quedan guardados y se aplicarán al "
+                "reiniciar la app.)")
         estaba_activo = self._stream is not None
         if estaba_activo:
             self.detener()
