@@ -12,9 +12,11 @@ import {
   cargarVocesBase,
   crearVozPersonalizada,
   escribirAjustes,
+  escribirIdsVocesOcultas,
   escribirVocesPersonalizadas,
   escribirVozActiva,
   leerAjustes,
+  leerIdsVocesOcultas,
   leerVocesPersonalizadas,
   leerVozActiva,
 } from '@/lib/voces'
@@ -35,6 +37,7 @@ interface EstadoLectura {
 interface EstadoApp {
   listo: boolean
   voces: Voz[]
+  vocesOcultas: Voz[]
   vozActivaId: string
   ajustes: Ajustes
   estadoMotor: EstadoMotor
@@ -50,6 +53,10 @@ interface EstadoApp {
   aplicarParametrosEnVivo(params: ParametrosDSP): void
   guardarVozPersonalizada(nombre: string, params: ParametrosDSP): void
   borrarVozPersonalizada(id: string): void
+  reinsertarVozPersonalizada(voz: Voz): void
+  ocultarVoz(id: string): void
+  restaurarVoz(id: string): void
+  restaurarVocesOcultas(): void
 
   iniciarMotor(): Promise<void>
   pararMotor(): void
@@ -82,6 +89,7 @@ function persistirAjustes(ajustes: Ajustes): void {
 export const useVozStore = create<EstadoApp>((set, get) => ({
   listo: false,
   voces: [],
+  vocesOcultas: [],
   vozActivaId: '',
   ajustes: AJUSTES_POR_DEFECTO,
   estadoMotor: 'detenido',
@@ -96,7 +104,14 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     const base = cargarVocesBase()
     const custom = leerVocesPersonalizadas()
     const { ajustes, aviso: avisoAjustes } = leerAjustes()
-    const voces = [...base.voces, ...custom.voces]
+    const { ids: idsOcultos, aviso: avisoOcultos } = leerIdsVocesOcultas()
+
+    // Voces base quitadas de la lista (restaurables). La Neutral JAMÁS queda
+    // oculta aunque el dato la incluya: es la voz de seguridad del arranque.
+    const ocultasSet = new Set(idsOcultos)
+    const ocultas = base.voces.filter((v) => ocultasSet.has(v.id) && v.nombre !== 'Neutral')
+    const visibles = base.voces.filter((v) => !ocultasSet.has(v.id) || v.nombre === 'Neutral')
+    const voces = [...visibles, ...custom.voces]
 
     const guardada = leerVozActiva()
     const inicial = voces.find((v) => v.id === guardada) ?? voces.find((v) => v.nombre === 'Neutral') ?? voces[0]
@@ -116,9 +131,9 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
 
     if (inicial) motor.fijarParametros(inicial.parametros_dsp)
 
-    set({ listo: true, voces, vozActivaId: inicial?.id ?? '', ajustes, estadoMotor: motor.estado })
+    set({ listo: true, voces, vocesOcultas: ocultas, vozActivaId: inicial?.id ?? '', ajustes, estadoMotor: motor.estado })
 
-    const avisos = [base.aviso, custom.aviso, avisoAjustes].filter(Boolean).join(' ')
+    const avisos = [base.aviso, custom.aviso, avisoAjustes, avisoOcultos].filter(Boolean).join(' ')
     if (avisos) {
       toast.warning('Avisos al cargar', { description: avisos })
     }
@@ -161,7 +176,12 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     const voz = get().voces.find((v) => v.id === id)
     if (!voz?.personalizada) return
     const restantes = get().voces.filter((v) => v.id !== id)
-    escribirVocesPersonalizadas(restantes.filter((v) => v.personalizada))
+    if (!escribirVocesPersonalizadas(restantes.filter((v) => v.personalizada))) {
+      toast.error('No se pudo eliminar la voz', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
     if (get().vozActivaId === id) {
       const neutral = restantes.find((v) => v.nombre === 'Neutral') ?? restantes[0]
       if (neutral) {
@@ -172,7 +192,93 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     } else {
       set({ voces: restantes })
     }
-    toast.success(`Voz "${voz.nombre}" eliminada`)
+    toast.success(`Voz "${voz.nombre}" eliminada`, {
+      action: { label: 'Deshacer', onClick: () => get().reinsertarVozPersonalizada(voz) },
+    })
+  },
+
+  // Deshacer del borrado de una voz personalizada: la reinserta y persiste.
+  reinsertarVozPersonalizada(voz) {
+    if (get().voces.some((v) => v.id === voz.id)) return
+    const custom = get().voces.filter((v) => v.personalizada)
+    if (!escribirVocesPersonalizadas([...custom, voz])) {
+      toast.error('No se pudo recuperar la voz', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+    set({ voces: [...get().voces, voz] })
+    toast.success(`Voz "${voz.nombre}" recuperada`)
+  },
+
+  // Quita una voz BASE de la lista (ocultarla): el catálogo generado no se
+  // toca, solo se registra su id como oculto y se puede restaurar. La voz
+  // activa nunca se queda huérfana: si se oculta, vuelve a Neutral.
+  ocultarVoz(id) {
+    const voz = get().voces.find((v) => v.id === id)
+    if (!voz || voz.personalizada) return
+    if (voz.nombre === 'Neutral') {
+      toast.info('La voz Neutral no se puede quitar', {
+        description: 'Es la voz de seguridad a la que vuelve la app si algo falla.',
+      })
+      return
+    }
+    const visibles = get().voces.filter((v) => v.id !== id)
+    const ocultas = [...get().vocesOcultas, voz]
+    if (!escribirIdsVocesOcultas(ocultas.map((v) => v.id))) {
+      toast.error('No se pudo quitar la voz', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+    if (get().vozActivaId === id) {
+      const neutral = visibles.find((v) => v.nombre === 'Neutral') ?? visibles[0]
+      if (neutral) {
+        motor.fijarParametros(neutral.parametros_dsp, { reset: true })
+        escribirVozActiva(neutral.id)
+      }
+      set({ voces: visibles, vocesOcultas: ocultas, vozActivaId: neutral?.id ?? '' })
+    } else {
+      set({ voces: visibles, vocesOcultas: ocultas })
+    }
+    toast.success(`Voz "${voz.nombre}" quitada de la lista`, {
+      description: 'Se restaura en Ajustes › Voces ocultas.',
+      action: { label: 'Deshacer', onClick: () => get().restaurarVoz(id) },
+    })
+  },
+
+  restaurarVoz(id) {
+    const voz = get().vocesOcultas.find((v) => v.id === id)
+    if (!voz) return
+    const ocultas = get().vocesOcultas.filter((v) => v.id !== id)
+    if (!escribirIdsVocesOcultas(ocultas.map((v) => v.id))) {
+      toast.error('No se pudo restaurar la voz', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+    // Se reinserta entre las base, antes que las personalizadas (orden estable).
+    const personalizadas = get().voces.filter((v) => v.personalizada)
+    const baseVisibles = get().voces.filter((v) => !v.personalizada)
+    set({ voces: [...baseVisibles, voz, ...personalizadas], vocesOcultas: ocultas })
+    toast.success(`Voz "${voz.nombre}" restaurada`)
+  },
+
+  restaurarVocesOcultas() {
+    const ocultas = get().vocesOcultas
+    if (ocultas.length === 0) return
+    if (!escribirIdsVocesOcultas([])) {
+      toast.error('No se pudieron restaurar las voces', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+    const personalizadas = get().voces.filter((v) => v.personalizada)
+    const baseVisibles = get().voces.filter((v) => !v.personalizada)
+    set({ voces: [...baseVisibles, ...ocultas, ...personalizadas], vocesOcultas: [] })
+    toast.success(`${ocultas.length} voz(es) restauradas`, {
+      description: 'Vuelven a aparecer en la pestaña Voces.',
+    })
   },
 
   async iniciarMotor() {
@@ -316,6 +422,7 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
       window.localStorage.removeItem('voz_dnd_web.voces_personalizadas')
       window.localStorage.removeItem('voz_dnd_web.ajustes')
       window.localStorage.removeItem('voz_dnd_web.voz_activa')
+      window.localStorage.removeItem('voz_dnd_web.voces_ocultas')
     } catch {
       /* modo privado: seguir con los valores en memoria */
     }
@@ -326,11 +433,12 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     motor.setVolumenMonitor(AJUSTES_POR_DEFECTO.volumenMonitor)
     set({
       voces: base.voces,
+      vocesOcultas: [],
       vozActivaId: neutral.id,
       ajustes: AJUSTES_POR_DEFECTO,
     })
     toast.success('Datos restablecidos', {
-      description: 'Voces personalizadas y ajustes vuelven a los valores base.',
+      description: 'Voces personalizadas, ocultas y ajustes vuelven a los valores base.',
     })
   },
 }))

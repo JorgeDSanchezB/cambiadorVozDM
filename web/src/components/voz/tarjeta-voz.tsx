@@ -1,8 +1,10 @@
 // Tarjeta de voz — icono, color y atajo vienen del DATO (catálogo espejo).
+// Voces personalizadas: borrado permanente (con deshacer). Voces base:
+// se quitan de la lista (restaurables en Ajustes) sin tocar el catálogo.
 
 'use client'
 
-import { Loader2, Play, Trash2 } from 'lucide-react'
+import { EyeOff, Loader2, Play, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,9 +18,10 @@ interface Props {
   onSeleccionar: () => void
   onProbar: () => void
   onBorrar?: () => void
+  onOcultar?: () => void
 }
 
-export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onBorrar }: Props) {
+export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onBorrar, onOcultar }: Props) {
   return (
     <Card
       role="button"
@@ -96,6 +99,25 @@ export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onB
               aria-label={`Eliminar la voz ${voz.nombre}`}
             >
               <Trash2 className="size-4" />
+            </Button>
+          )}
+          {!voz.personalizada && onOcultar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOcultar()
+              }}
+              title={voz.nombre === 'Neutral' ? 'La voz Neutral no se puede quitar' : 'Quitar voz de la lista (restaurable en Ajustes)'}
+              aria-label={
+                voz.nombre === 'Neutral'
+                  ? `La voz ${voz.nombre} no se puede quitar`
+                  : `Quitar la voz ${voz.nombre} de la lista`
+              }
+            >
+              <EyeOff className="size-4" />
             </Button>
           )}
         </div>

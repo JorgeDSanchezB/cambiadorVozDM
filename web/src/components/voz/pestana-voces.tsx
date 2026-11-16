@@ -6,8 +6,9 @@
 
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Eye, EyeOff, Search, SlidersHorizontal } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { clasificarError } from '@/lib/errores'
@@ -19,9 +20,12 @@ import { TarjetaVoz } from './tarjeta-voz'
 
 export function PestanaVoces() {
   const voces = useVozStore((s) => s.voces)
+  const vocesOcultas = useVozStore((s) => s.vocesOcultas)
   const vozActivaId = useVozStore((s) => s.vozActivaId)
   const seleccionarVoz = useVozStore((s) => s.seleccionarVoz)
   const borrarVozPersonalizada = useVozStore((s) => s.borrarVozPersonalizada)
+  const ocultarVoz = useVozStore((s) => s.ocultarVoz)
+  const restaurarVocesOcultas = useVozStore((s) => s.restaurarVocesOcultas)
 
   const [busqueda, setBusqueda] = useState('')
   const [probandoId, setProbandoId] = useState<string | null>(null)
@@ -95,6 +99,18 @@ export function PestanaVoces() {
           <SlidersHorizontal className="size-3" aria-hidden="true" />
           {filtradas.length} de {voces.length}
         </Badge>
+        {vocesOcultas.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={restaurarVocesOcultas}
+            title="Volver a mostrar todas las voces quitadas"
+          >
+            <Eye className="size-3.5" aria-hidden="true" />
+            {vocesOcultas.length} oculta{vocesOcultas.length === 1 ? '' : 's'} · Restaurar
+          </Button>
+        )}
       </div>
 
       <div className="rol-custom max-h-[32rem] overflow-y-auto pr-1">
@@ -108,6 +124,7 @@ export function PestanaVoces() {
               onSeleccionar={() => seleccionarVoz(voz.id)}
               onProbar={() => probar(voz)}
               onBorrar={voz.personalizada ? () => borrarVozPersonalizada(voz.id) : undefined}
+              onOcultar={!voz.personalizada ? () => ocultarVoz(voz.id) : undefined}
             />
           ))}
         </div>
@@ -119,8 +136,9 @@ export function PestanaVoces() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        El botón de reproducción de cada tarjeta sintetiza una frase corta con los efectos de esa voz
-        (requiere conexión; el micrófono no es necesario). Atajos F1–F12 y Shift+F1–F6 según el catálogo.
+        El botón de reproducción sintetiza una frase corta con los efectos de esa voz (requiere conexión).
+        Las voces base se quitan con el botón del ojo tachado y se restauran aquí mismo o en Ajustes;
+        las personalizadas se eliminan (con deshacer). Atajos F1–F12 y Shift+F1–F6 según el catálogo.
       </p>
     </div>
   )

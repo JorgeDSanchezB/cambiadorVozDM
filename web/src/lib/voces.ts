@@ -4,6 +4,8 @@
 // voz_dnd/data/voces/*.json (regla de espejo entre ramas, ver AGENTS.md).
 // Las voces personalizadas viven en localStorage (espejo funcional del
 // "guardar como nueva voz" del escritorio) con tolerancia a datos corruptos.
+// Las voces base que el usuario quita de su lista se guardan como ids
+// ocultos (se restauran desde Ajustes): nunca se toca el catálogo generado.
 
 import catalogoVocesJson from '@/data/voces.json'
 import catalogoParametrosJson from '@/data/parametros.json'
@@ -18,6 +20,7 @@ const catalogoVoces = catalogoVocesJson as unknown as CatalogoVoces
 const CLAVE_PERSONALIZADAS = 'voz_dnd_web.voces_personalizadas'
 const CLAVE_AJUSTES = 'voz_dnd_web.ajustes'
 const CLAVE_VOZ_ACTIVA = 'voz_dnd_web.voz_activa'
+const CLAVE_OCULTAS = 'voz_dnd_web.voces_ocultas'
 
 export const AJUSTES_POR_DEFECTO: Ajustes = {
   dispositivoEntrada: null,
@@ -184,6 +187,35 @@ export function escribirVozActiva(id: string): void {
     window.localStorage.setItem(CLAVE_VOZ_ACTIVA, id)
   } catch {
     /* sin persistencia: no bloquea */
+  }
+}
+
+// Ids de voces base quitadas de la lista (restaurables). Tolerante a datos
+// corruptos: lo que no sea un array de strings se ignora con aviso; si el
+// dato es ilegible, se restauran todas (mejor una voz de más que una de menos).
+export function leerIdsVocesOcultas(): { ids: string[]; aviso: string | null } {
+  if (typeof window === 'undefined') return { ids: [], aviso: null }
+  try {
+    const crudo = window.localStorage.getItem(CLAVE_OCULTAS)
+    if (!crudo) return { ids: [], aviso: null }
+    const dato = JSON.parse(crudo)
+    if (!Array.isArray(dato)) throw new Error('formato inesperado')
+    const ids = dato.filter((x): x is string => typeof x === 'string')
+    const aviso = ids.length !== dato.length
+      ? 'La lista de voces quitadas venía dañada; se ignoraron las entradas inválidas.'
+      : null
+    return { ids, aviso }
+  } catch {
+    return { ids: [], aviso: 'La lista de voces quitadas era ilegible; se restauraron todas.' }
+  }
+}
+
+export function escribirIdsVocesOcultas(ids: string[]): boolean {
+  try {
+    window.localStorage.setItem(CLAVE_OCULTAS, JSON.stringify(ids))
+    return true
+  } catch {
+    return false
   }
 }
 

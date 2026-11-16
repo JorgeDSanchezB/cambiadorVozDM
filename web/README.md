@@ -18,8 +18,9 @@ ejecutándose en el navegador con React (Next.js 16 + Web Audio).
 | Lectura TTS | `edge-tts` (Microsoft, en línea) | `/api/tts` (servidor, `z-ai-web-dev-sdk`) + respaldo `speechSynthesis` |
 | Grabación | MP3 (pydub/ffmpeg) con cascada WAV | WebM/Opus (MP4 en Safari) vía `MediaRecorder`, post-DSP |
 | Modo IA (RVC) | ONNX/PyTorch con degradación a DSP | No disponible: la voz "IA Demo" degrada a su `dsp_post` |
-| Atajos | F1–F12 / Shift+F1–F6 desde `config.json` | Mismo mapa, desde el campo `atajo` del catálogo |
+| Atajos | F1–F12 / Shift+F1–F6 desde `config.json` | Mismo mapa, desde el campo `atajo` del catálogo (las voces ocultas pierden su atajo) |
 | Config | `data/config.json` | `localStorage` (claves `voz_dnd_web.*`) con tolerancia a corrupción |
+| Quitar voces | Editor › "Eliminar" (borra el JSON de `data/voces/`, permanente; Neutral protegida) | Ojo tachado en la tarjeta: **oculta** la voz base de la lista (id en `localStorage`, restaurable en Ajustes › Voces ocultas; Neutral protegida); las personalizadas se eliminan con deshacer |
 
 ## Ejecutar
 

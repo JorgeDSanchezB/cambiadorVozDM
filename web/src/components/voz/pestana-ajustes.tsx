@@ -4,7 +4,7 @@
 
 'use client'
 
-import { RotateCcw, Trash2 } from 'lucide-react'
+import { Eye, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -31,12 +31,15 @@ export function PestanaAjustes() {
   const ajustes = useVozStore((s) => s.ajustes)
   const dispositivos = useVozStore((s) => s.dispositivosEntrada)
   const voces = useVozStore((s) => s.voces)
+  const vocesOcultas = useVozStore((s) => s.vocesOcultas)
   const setDispositivoEntrada = useVozStore((s) => s.setDispositivoEntrada)
   const setSrObjetivo = useVozStore((s) => s.setSrObjetivo)
   const setMonitor = useVozStore((s) => s.setMonitor)
   const setVolumenMonitor = useVozStore((s) => s.setVolumenMonitor)
   const setAtajos = useVozStore((s) => s.setAtajos)
   const actualizarDispositivos = useVozStore((s) => s.actualizarDispositivos)
+  const restaurarVoz = useVozStore((s) => s.restaurarVoz)
+  const restaurarVocesOcultas = useVozStore((s) => s.restaurarVocesOcultas)
   const restablecerDatos = useVozStore((s) => s.restablecerDatos)
 
   const conAtajo = voces.filter((v) => v.atajo)
@@ -174,6 +177,64 @@ export function PestanaAjustes() {
         </CardContent>
       </Card>
 
+      {vocesOcultas.length > 0 && (
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <span>Voces ocultas ({vocesOcultas.length})</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={restaurarVocesOcultas}
+              >
+                <Eye className="size-3.5" aria-hidden="true" />
+                Restaurar todas
+              </Button>
+            </CardTitle>
+            <CardDescription>
+              Voces del catálogo que quitaste de tu lista. Se restauran aquí: la lista y el catálogo
+              generado nunca se tocan. La voz Neutral no se puede ocultar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="rol-custom max-h-64 space-y-1.5 overflow-y-auto pr-1">
+              {vocesOcultas.map((voz) => (
+                <li
+                  key={voz.id}
+                  className="flex items-center gap-3 rounded-md border px-3 py-2"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-1.5 self-stretch rounded-full"
+                    style={{ backgroundColor: voz.color }}
+                  />
+                  <span aria-hidden="true" className="text-lg leading-none select-none">
+                    {voz.icono}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{voz.nombre}</span>
+                  {voz.atajo && (
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {voz.atajo}
+                    </Badge>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 gap-1.5"
+                    onClick={() => restaurarVoz(voz.id)}
+                    aria-label={`Restaurar la voz ${voz.nombre}`}
+                  >
+                    <Eye className="size-4" aria-hidden="true" />
+                    Restaurar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base">Datos locales</CardTitle>
@@ -185,6 +246,11 @@ export function PestanaAjustes() {
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Voces personalizadas guardadas: <strong>{personales.length}</strong>
+            {vocesOcultas.length > 0 && (
+              <>
+                {' '}· Voces del catálogo ocultas: <strong>{vocesOcultas.length}</strong>
+              </>
+            )}
           </p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -197,8 +263,9 @@ export function PestanaAjustes() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Restablecer todos los datos locales?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Se eliminan las {personales.length} voz(es) personalizada(s) y los ajustes vuelven a
-                  los valores base. Las voces del catálogo no se ven afectadas.
+                  Se eliminan las {personales.length} voz(es) personalizada(s), se restauran las
+                  {vocesOcultas.length > 0 ? ` ${vocesOcultas.length} oculta(s)` : ' voces ocultas'} y
+                  los ajustes vuelven a los valores base. El catálogo de la app no se toca.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -224,7 +291,9 @@ export function PestanaAjustes() {
             Diferencias honestas: la grabación se descarga en formato del navegador (WebM/Opus, MP4 en
             Safari) en vez de MP3; el modo IA (RVC) no está disponible en web y la voz IA Demo degrada a
             su cadena DSP post, igual que el escritorio sin GPU; la síntesis usa el servicio del servidor
-            con respaldo en la voz del navegador.
+            con respaldo en la voz del navegador. Gestión de voces: el escritorio elimina la voz de
+            data/voces/ (permanente, desde el Editor); la web, al no poder tocar el catálogo generado,
+            quita la voz de tu lista y la puedes restaurar aquí en cualquier momento.
           </p>
         </CardContent>
       </Card>
