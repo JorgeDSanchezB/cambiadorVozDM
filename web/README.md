@@ -33,8 +33,12 @@ bun run lint       # ESLint (misma config que el entorno de despliegue)
 ```
 
 No requiere claves externas en el cliente. El servidor usa `z-ai-web-dev-sdk`
-(TTS) y Prisma + SQLite (`db/custom.db`, se crea con `bun run db:push`) para
-favoritos e historial del elenco FakeYou.
+(TTS) y Prisma + SQLite para favoritos e historial del elenco FakeYou:
+
+```bash
+cp .env.example .env   # ruta de la BD (el despliegue del sandbox ya la exporta)
+bun run db:push        # crea/actualiza db/custom.db con el schema
+```
 
 ## Pestañas
 
