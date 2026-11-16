@@ -3,10 +3,20 @@
 Todos los cambios se aplican al pulsar "💾 Guardar ajustes", que emite
 `senal_config_actualizada(ConfigApp)`; la ventana principal persiste el JSON,
 reinicia el stream de audio si hace falta y reconstruye los atajos.
+
+Incluye el GESTOR DE MOTORES IA (idea del Model Manager de VoiceStudio):
+muestra el estado real de cada pieza del modo IA y permite instalar la vía
+ONNX (rmvpe-onnx + onnxruntime) sin salir de la app, en un hilo de fondo
+que jamás bloquea la GUI. La degradación a DSP sigue intacta: si algo
+falla, el modo IA avisa y el audio nunca se corta.
 """
 from __future__ import annotations
 
+import importlib
 import logging
+import subprocess
+import sys
+import threading
 from pathlib import Path
 
 from PyQt6.QtGui import QKeySequence
@@ -37,7 +47,7 @@ from app.config import (
     ConfigUI,
 )
 from app.domain.models import IVoiceProfile
-from app.engine.modulo_ia import ModuloIA
+from app.engine.modulo_ia import ModuloIA, estado_motores
 from app.engine.motor_audio import OVERHEAD_DRIVER_MS
 from app.gui.tema import CLARO, Tema
 
@@ -48,6 +58,7 @@ BITRATES_KBPS = (128, 192, 320)   # opciones de UI (no límite del motor)
 
 class PestanaAjustes(QWidget):
     senal_config_actualizada = pyqtSignal(object)  # ConfigApp
+    senal_ia_instalado = pyqtSignal(bool, str)  # ok, resumen (emitida desde el hilo de fondo)
 
     def __init__(self, cfg: ConfigApp, voces: list[IVoiceProfile],
                  tema: Tema | None = None):
@@ -57,6 +68,9 @@ class PestanaAjustes(QWidget):
         self._tema = tema or CLARO
         self._editores_atajo: dict[str, QKeySequenceEdit] = {}  # id → editor
         self._form_atajos: QFormLayout | None = None
+        # El resultado de la instalación (hilo de fondo) llega por señal
+        # (queued automáticamente desde un hilo no-GUI) y se pinta aquí.
+        self.senal_ia_instalado.connect(self._al_terminar_instalacion)
 
         contenido = QWidget()
         raiz = QVBoxLayout(contenido)
@@ -157,6 +171,19 @@ class PestanaAjustes(QWidget):
         self.etiqueta_gpu.setStyleSheet(
             "color:#7fb069;" if con_gpu else "color:#d8b13c;")
         form_ia.addRow("GPU:", self.etiqueta_gpu)
+
+        # Gestor de motores: estado real de cada pieza + instalación de la
+        # vía ONNX sin salir de la app (hilo de fondo, nunca bloquea la GUI).
+        self.etiqueta_motores = QLabel("")
+        self.etiqueta_motores.setWordWrap(True)
+        self._refrescar_motores()
+        form_ia.addRow("Motores:", self.etiqueta_motores)
+        self.boton_ia_instalar = QPushButton("⬇️ Instalar vía ONNX (CPU)")
+        self.boton_ia_instalar.setToolTip(
+            "Instala rmvpe-onnx + onnxruntime en este Python. Con eso el "
+            "modo IA funciona en cualquier PC; sin ello degrada a DSP.")
+        self.boton_ia_instalar.clicked.connect(self._instalar_ia_onnx)
+        form_ia.addRow("", self.boton_ia_instalar)
         raiz.addWidget(grupo_ia)
 
         # -------------------------- Atajos ------------------------- #
@@ -237,6 +264,68 @@ class PestanaAjustes(QWidget):
         self._editores_atajo.clear()
         if self._form_atajos is not None:
             self._construir_atajos(self._form_atajos)
+
+    # ----------------------- gestor de motores IA -------------------------- #
+    PAQUETES_IA_ONNX = ("rmvpe-onnx", "onnxruntime")
+
+    def _texto_motores(self) -> str:
+        estado = estado_motores()
+        if estado["ia_lista"]:
+            linea_ia = "✔ Modo IA LISTO"
+        else:
+            linea_ia = ("✖ Sin vía RVC completa: el modo IA degradará a DSP "
+                        "(el audio sigue funcionando igual)")
+        return (f"{linea_ia}\n"
+                f"  PyTorch: {'✔' if estado['torch'] else '✖'}  ·  "
+                f"onnxruntime: {'✔' if estado['onnxruntime'] else '✖'}  ·  "
+                f"rmvpe-onnx: {'✔' if estado['rmvpe_onnx'] else '✖'}  ·  "
+                f"tts-with-rvc: {'✔' if estado['tts_with_rvc'] else '✖'}\n"
+                f"  ({estado['detalle_backend']})")
+
+    def _refrescar_motores(self) -> None:
+        """Relee el estado real de las piezas del modo IA y lo muestra."""
+        self.etiqueta_motores.setText(self._texto_motores())
+        estado = estado_motores()
+        self.boton_ia_instalar.setVisible(not estado["ia_lista"])
+
+    def _instalar_ia_onnx(self) -> None:
+        """Lanza pip install de la vía ONNX en un hilo de fondo.
+
+        El subprocess usa el MISMO Python que ejecuta la app (sys.executable:
+        en desarrollo el venv, en el instalador el runtime embebido). Al
+        terminar se invalidan los cachés de imports y se relee el estado:
+        si todo fue bien, el modo IA queda usable sin reiniciar.
+        """
+        self.boton_ia_instalar.setEnabled(False)
+        self.boton_ia_instalar.setText("Instalando… (tarda un rato)")
+
+        def en_hilo() -> None:
+            ok = False
+            resumen = ""
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--quiet",
+                     *self.PAQUETES_IA_ONNX],
+                    capture_output=True, text=True, timeout=600,
+                )
+                ok = proc.returncode == 0
+                cola = (proc.stderr or proc.stdout or "").strip().splitlines()
+                resumen = cola[-1] if cola else ("instalado" if ok else "sin detalle")
+            except Exception as exc:  # noqa: BLE001 — pip puede fallar de mil maneras
+                resumen = str(exc)
+            if ok:
+                # Los paquetes nuevos deben ser visibles sin reiniciar la app.
+                importlib.invalidate_caches()
+            self.senal_ia_instalado.emit(ok, resumen)
+
+        threading.Thread(target=en_hilo, daemon=True).start()
+
+    def _al_terminar_instalacion(self, ok: bool, resumen: str) -> None:
+        """Vuelve del hilo de fondo: refresca y avisa con honestidad."""
+        self.boton_ia_instalar.setEnabled(True)
+        self.boton_ia_instalar.setText("⬇️ Instalar vía ONNX (CPU)")
+        self._refrescar_motores()
+        log.info("Instalación de la vía ONNX: ok=%s (%s)", ok, resumen)
 
     # ------------------------------ guardar --------------------------------- #
     def _refrescar_latencia(self) -> None:
