@@ -210,7 +210,8 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_voces.set_tema(self._tema)
         self.pestana_editor = PestanaEditor(self.gestor_voces, self.catalogo)
         self.pestana_ajustes = PestanaAjustes(
-            self.cfg, self.gestor_voces.todas(), self._tema)
+            self.cfg, self.gestor_voces.todas(), self._tema,
+            gestor=self.gestor_voces)
         carpeta_wav = self._carpeta_wav_base()
         self.pestana_lectura = PestanaLectura(self._tema, carpeta_wav)
         pestanas = QTabWidget()
@@ -232,6 +233,9 @@ class VentanaPrincipal(QMainWindow):
         self.pestana_editor.senal_probar.connect(self._probar_parametros)
         self.pestana_editor.senal_voces_cambiadas.connect(self._voces_cambiadas)
         self.pestana_ajustes.senal_config_actualizada.connect(self._aplicar_config)
+        # Tras importar un pack de voces, el elenco de la app se recarga
+        # (mismo camino que «recargar voces» de la pestaña Voces).
+        self.pestana_ajustes.senal_pack_importado.connect(self._recargar_voces)
 
         self.pestana_lectura.senal_leer.connect(self._leer_texto)
         self.pestana_lectura.senal_detener.connect(self._detener_lectura)
