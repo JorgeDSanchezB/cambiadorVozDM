@@ -227,3 +227,15 @@ guarda la nota con fecha.
   errores (calidad medida con TTS→ASR: aceptable, no perfecta). Si el ASR
   no reconoce voz → error claro y la grabación se descarta (no guardamos
   audio en localStorage).
+## Pack de voces (web) — compartir el elenco
+
+Espejo web de los packs del escritorio (`app/engine/packs.py`), formato
+DISTINTO y HONESTO: JSON con las voces personalizadas completas (no ZIP),
+card «Pack de voces» en Ajustes (entre Atajos y la cuenta FakeYou).
+
+- `procesarPackVoces(crudo, existentes)` en lib/voces.ts: ids nuevos
+  SIEMPRE, nombres duplicados omitidos con aviso, parámetros acotados al
+  catálogo (máx 100 entradas), avisos listados en el toast. Store:
+  `importarPackVoces(pack)`.
+- El pack del escritorio (ZIP) NO se importa aquí; el mensaje lo explica.
+  No unificar formatos sin petición explícita del usuario.

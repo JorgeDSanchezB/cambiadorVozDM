@@ -306,4 +306,74 @@ export function resumenParametros(p: ParametrosDSP): { etiqueta: string; texto: 
   return chips
 }
 
+// ---------------- Packs de voces (web) ----------------
+// Espejo web de los packs del escritorio (app/engine/packs.py). Formato
+// HONESTO y distinto: la web exporta/importa un JSON con sus voces
+// personalizadas completas; el ZIP del escritorio NO se importa aquí
+// (y la UI lo dice). Importación conservadora: ids nuevos SIEMPRE,
+// nombres duplicados omitidos con aviso, parámetros acotados al catálogo.
+export interface ResultadoPackVoces {
+  nuevas: Voz[]
+  avisos: string[]
+}
+
+export function procesarPackVoces(crudo: unknown, existentes: Voz[]): ResultadoPackVoces {
+  const avisos: string[] = []
+  const nuevas: Voz[] = []
+  if (typeof crudo !== 'object' || crudo === null) {
+    avisos.push('El archivo no contiene un pack de voces de la web.')
+    return { nuevas, avisos }
+  }
+  const pack = crudo as { voces?: unknown }
+  if (!Array.isArray(pack.voces)) {
+    avisos.push('El pack no trae la lista «voces» (¿es el ZIP del escritorio? Eso no se importa aquí).')
+    return { nuevas, avisos }
+  }
+
+  const nombres = new Set(existentes.map((v) => v.nombre.trim().toLowerCase()))
+  for (const candidata of pack.voces.slice(0, 100)) {
+    if (typeof candidata !== 'object' || candidata === null) {
+      avisos.push('Una entrada del pack no era una voz y se omitió.')
+      continue
+    }
+    const c = candidata as Record<string, unknown>
+    const nombre = typeof c.nombre === 'string' ? c.nombre.trim().slice(0, 40) : ''
+    if (!nombre) {
+      avisos.push('Una voz sin nombre se omitió.')
+      continue
+    }
+    if (nombres.has(nombre.toLowerCase())) {
+      avisos.push(`${nombre}: ya existe una voz con ese nombre.`)
+      continue
+    }
+    const crudoParams = (typeof c.parametros_dsp === 'object' && c.parametros_dsp !== null)
+      ? (c.parametros_dsp as Record<string, unknown>)
+      : null
+    if (!crudoParams) {
+      avisos.push(`${nombre}: sin cadena DSP, se omitió.`)
+      continue
+    }
+    const params = {} as ParametrosDSP
+    let sano = true
+    for (const clave of CLAVES_PARAMETROS) {
+      const def = CATALOGO_PARAMETROS[clave]
+      const valor = Number(crudoParams[clave])
+      if (!Number.isFinite(valor)) {
+        avisos.push(`${nombre}: parámetro ${clave} inválido, se omitió.`)
+        sano = false
+        break
+      }
+      const acotado = Math.min(Math.max(valor, def.min), def.max)
+      const redondeado = Math.round(acotado / def.paso) * def.paso
+      params[clave] = Number(redondeado.toFixed(4))
+    }
+    if (!sano) continue
+    const color = typeof c.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : undefined
+    const icono = typeof c.icono === 'string' && Array.from(c.icono.trim()).length <= 2 ? c.icono.trim() : undefined
+    nuevas.push(crearVozPersonalizada(nombre, params, { icono, color }))
+    nombres.add(nombre.toLowerCase())
+  }
+  return { nuevas, avisos }
+}
+
 export { errorVoz }

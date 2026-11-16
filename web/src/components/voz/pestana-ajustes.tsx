@@ -30,6 +30,7 @@ import { Switch } from '@/components/ui/switch'
 import { usePersonajesStore } from '@/store/personajes'
 import { useVozStore } from '@/store/voz'
 import { TarjetaAtajos } from '@/components/voz/tarjeta-atajos'
+import { TarjetaPackVoces } from '@/components/voz/tarjeta-pack-voces'
 
 // Cuenta de FakeYou (mudanza desde la antigua pestaña Personajes): el token
 // de sesión sube el cupo de generación del elenco. Vive aquí por ser un
@@ -219,6 +220,8 @@ export function PestanaAjustes() {
       </Card>
 
       <TarjetaAtajos />
+
+      <TarjetaPackVoces />
 
       <TarjetaCuentaFakeYou />
 

@@ -21,6 +21,7 @@ import {
   leerIdsVocesOcultas,
   leerVocesPersonalizadas,
   leerVozActiva,
+  procesarPackVoces,
 } from '@/lib/voces'
 import type { Ajustes, ParametrosDSP, Voz } from '@/lib/tipos'
 
@@ -62,6 +63,7 @@ interface EstadoApp {
     params: ParametrosDSP,
     extras?: { icono?: string; color?: string },
   ): void
+  importarPackVoces(pack: unknown): void
   borrarVozPersonalizada(id: string): void
   reinsertarVozPersonalizada(voz: Voz): void
   ocultarVoz(id: string): void
@@ -200,6 +202,30 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     get().seleccionarVoz(nueva.id)
     toast.success(`Voz "${nueva.nombre}" guardada`, {
       description: 'Queda disponible en la pestaña Voces y persiste en este navegador.',
+    })
+  },
+
+  // Importación conservadora de un pack de voces (JSON web): ids nuevos,
+  // duplicados omitidos, parámetros acotados. Espejo de packs.py del
+  // escritorio (misma política, formato distinto — la UI lo explica).
+  importarPackVoces(pack) {
+    const { nuevas, avisos } = procesarPackVoces(pack, get().voces)
+    if (nuevas.length === 0) {
+      toast.error('El pack no trajo voces nuevas', {
+        description: avisos[0] ?? 'Revisa el archivo.',
+      })
+      return
+    }
+    const custom = get().voces.filter((v) => v.personalizada)
+    if (!escribirVocesPersonalizadas([...custom, ...nuevas])) {
+      toast.error('No se pudo guardar el pack', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+    set({ voces: [...get().voces, ...nuevas] })
+    toast.success(`${nuevas.length} voz(es) añadidas del pack`, {
+      description: avisos.length > 0 ? avisos.slice(0, 3).join(' · ') : 'Están en la pestaña Voces.',
     })
   },
 
