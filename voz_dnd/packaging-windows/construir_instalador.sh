@@ -47,8 +47,18 @@ done
 rm -f "${PAYLOAD}/runtime/Lib/site-packages/"*.whl
 
 echo "[4/7] Configurando python314._pth..."
-printf 'python314.zip\n.\nLib/site-packages\nimport site\n' \
-  > "${PAYLOAD}/runtime/python314._pth"
+# El ._pth activa el MODO AISLADO del Python embebido: la carpeta del
+# script NO se añade a sys.path. Sin la línea ..\app, el `import app` de
+# main.py falla con ModuleNotFoundError y pythonw muere en silencio
+# («nada pasa» al hacer doble clic). La ruta relativa se resuelve contra
+# la carpeta del ._pth (runtime\) → INSTDIR\app.
+cat > "${PAYLOAD}/runtime/python314._pth" <<'PTH'
+python314.zip
+.
+..\app
+Lib/site-packages
+import site
+PTH
 
 echo "[5/7] Copiando el código de voz_dnd..."
 # Se excluye el propio workspace de construcción (_build, wheels): si no,
@@ -59,13 +69,56 @@ rsync -a --exclude='__pycache__' --exclude='*.pyc' --exclude='logs' \
   "${AQUI}/../" "${PAYLOAD}/app/"
 rm -f "${PAYLOAD}/app/iniciar_voz_dnd.bat"
 
-echo "[6/7] Preparando icono y lanzador de depuración..."
+echo "[6/7] Preparando lanzador con registro de fallos, icono y depuración..."
+# Lanzador robusto: pythonw no tiene consola; si algo falla ANTES de que
+# main.py configure su app.log, el usuario solo ve «nada pasa». Este
+# lanzador registra cualquier fallo (incluidos crashes duros vía
+# faulthandler) en app\logs\arranque.log y ejecuta main.py igual que
+# `python main.py` desde la carpeta app.
+cat > "${PAYLOAD}/runtime/lanzar_app.py" <<'PY'
+"""Arranque robusto de DMVoiceChanger - nunca muere en silencio."""
+import faulthandler
+import os
+import sys
+import traceback
+from datetime import datetime
+
+RAIZ = os.path.dirname(os.path.abspath(__file__))
+APP = os.path.normpath(os.path.join(RAIZ, "..", "app"))
+os.chdir(APP)
+sys.path.insert(0, APP)  # cinturon y tirantes ademas de ..\app en el ._pth
+
+RUTA_LOG = os.path.join(APP, "logs", "arranque.log")
+os.makedirs(os.path.dirname(RUTA_LOG), exist_ok=True)
+
+_log = open(RUTA_LOG, "a", encoding="utf-8")
+_log.write(
+    f"\n=== {datetime.now().isoformat(timespec='seconds')} · "
+    f"Python {sys.version.split()[0]} · {sys.executable}\n"
+)
+_log.flush()
+faulthandler.enable(_log)
+
+try:
+    import runpy
+
+    runpy.run_path(os.path.join(APP, "main.py"), run_name="__main__")
+    _log.write("ejecucion terminada\n")
+except SystemExit as salida:
+    _log.write(f"salida limpia (SystemExit {salida.code})\n")
+except BaseException:
+    _log.write(traceback.format_exc() + "\n")
+    _log.flush()
+    raise
+PY
 cp "${AQUI}/DMVoiceChanger.ico" "${PAYLOAD}/DMVoiceChanger.ico"
 cat > "${PAYLOAD}/DMVoiceChanger-Depuracion.bat" <<'BAT'
 @echo off
-REM DMVoiceChanger - modo depuracion (muestra consola de errores)
+REM DMVoiceChanger - modo depuracion: consola visible + registro de fallos
 cd /d "%~dp0app"
-"%~dp0runtime\python.exe" main.py
+"%~dp0runtime\python.exe" "%~dp0runtime\lanzar_app.py"
+echo.
+echo Codigo de salida: %ERRORLEVEL%
 pause
 BAT
 
