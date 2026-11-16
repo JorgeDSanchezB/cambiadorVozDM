@@ -6,7 +6,7 @@ administrador en el equipo destino.
 
 ## Qué produce
 
-`download/DMVoiceChanger.exe` — instalador NSIS (v1.1.0, ~96 MB) con:
+`download/DMVoiceChanger.exe` — instalador NSIS (v1.1.1, ~101 MB) con:
 
 - **Runtime Python 3.14 embebido** (no toca el Python del sistema, no hay
   venv).
@@ -26,6 +26,26 @@ administrador en el equipo destino.
   (sin UAC), accesos directos en Menú de inicio + Escritorio y un
   `DMVoiceChanger-Depuracion.bat` para ver la consola de errores.
 - **Desinstalador** real, registrado en «Aplicaciones instaladas» (HKCU).
+
+## Arreglo de arranque (v1.1.1): «doble clic y nada pasa»
+
+El `python314._pth` del runtime embebido activa el **modo aislado** de
+Python: la carpeta del script NO se añade a `sys.path`. Con el atajo
+original (`pythonw.exe main.py`) el `import app` de `main.py` moría con
+`ModuleNotFoundError` y pythonw no muestra consola → el usuario solo ve
+«nada pasa». Tres capas de protección:
+
+1. El `._pth` incluye `..\app` (relativa al propio `._pth` → `INSTDIR\app`).
+2. Los atajos y la página final ejecutan `runtime\lanzar_app.py`: un
+   lanzador que hace chdir a `app\`, fuerza `sys.path`, ejecuta
+   `main.py` vía `runpy` y registra CUALQUIER fallo (traceback y crashes
+   duros vía faulthandler) en `app\logs\arranque.log`.
+3. `DMVoiceChanger-Depuracion.bat` lanza el mismo lanzador con consola
+   (`python.exe`) y muestra el código de salida.
+
+Verificado en Linux con una réplica de la estructura instalada: import OK,
+salida limpia registrada y traceback completo en `arranque.log` cuando el
+fallo es de import.
 
 ## Notas honestas
 
