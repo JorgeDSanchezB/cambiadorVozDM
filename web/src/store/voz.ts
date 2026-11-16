@@ -57,7 +57,11 @@ interface EstadoApp {
   vozActiva(): Voz | undefined
   seleccionarVoz(id: string): void
   aplicarParametrosEnVivo(params: ParametrosDSP): void
-  guardarVozPersonalizada(nombre: string, params: ParametrosDSP): void
+  guardarVozPersonalizada(
+    nombre: string,
+    params: ParametrosDSP,
+    extras?: { icono?: string; color?: string },
+  ): void
   borrarVozPersonalizada(id: string): void
   reinsertarVozPersonalizada(voz: Voz): void
   ocultarVoz(id: string): void
@@ -183,8 +187,8 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     motor.fijarParametros(params, { reset: false })
   },
 
-  guardarVozPersonalizada(nombre, params) {
-    const nueva = crearVozPersonalizada(nombre, params)
+  guardarVozPersonalizada(nombre, params, extras) {
+    const nueva = crearVozPersonalizada(nombre, params, extras)
     const custom = get().voces.filter((v) => v.personalizada)
     if (!escribirVocesPersonalizadas([...custom, nueva])) {
       toast.error('No se pudo guardar la voz', {

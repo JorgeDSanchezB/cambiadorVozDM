@@ -268,16 +268,25 @@ export function escribirAtajosGuardados(atajos: Record<string, string | null>): 
 
 const PALETA_PERSONAL = ['#8a6d3b', '#7a5c3e', '#5f7a4a', '#8a4a5f', '#6b5b8a', '#a0673b']
 
-export function crearVozPersonalizada(nombre: string, parametros: ParametrosDSP): Voz {
+export function crearVozPersonalizada(
+  nombre: string,
+  parametros: ParametrosDSP,
+  extras?: { icono?: string; color?: string },
+): Voz {
   const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `personal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const color = PALETA_PERSONAL[Math.floor(Math.random() * PALETA_PERSONAL.length)]
+  const color = extras?.color?.match(/^#[0-9a-fA-F]{6}$/)
+    ? extras.color
+    : PALETA_PERSONAL[Math.floor(Math.random() * PALETA_PERSONAL.length)]
+  const icono = extras?.icono && Array.from(extras.icono.trim()).length <= 2
+    ? extras.icono.trim()
+    : '★'
   return {
     id,
     nombre: nombre.trim() || 'Voz sin nombre',
     tipo: 'DSP',
-    icono: '★',
+    icono,
     color,
     atajo: null,
     parametros_dsp: parametros,

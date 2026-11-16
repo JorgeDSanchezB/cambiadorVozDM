@@ -165,3 +165,25 @@ catálogo es SOLO una sugerencia inicial y el dueño es el usuario, desde
   personalizadas sin tecla. «Restablecer datos locales» también limpia
   `voz_dnd_web.atajos`.
 - NO volver a convertir la card en una lista de solo lectura con badges.
+## Forja por descripción (Creador) — Voice Design estilo VoiceStudio
+
+Petición explícita del usuario (idea de VoiceStudio, implementación propia):
+en Creador hay una card «Forja por descripción» ENCIMA del editor. Describe
+la voz con palabras → la IA del servidor propone nombre + icono + color +
+cadena DSP completa → «Guardar voz en la forja» la crea como voz
+personalizada (con icono/color del LLM) y la deja como voz activa.
+
+- Ruta: `POST /api/creador/describir` (z-ai-web-dev-sdk, SOLO servidor).
+  Contrato de salida: `{ ok, voz: { nombre, icono, color, resumen,
+  parametros_dsp } }`.
+- **El servidor SIEMPRE acota y redondea los 10 parámetros contra
+  `data/parametros.json`** (acotarParametros). La IA nunca decide los
+  límites; si falta un parámetro → 502 con mensaje honesto.
+- Quirk del SDK: el prompt de sistema se envía con role `assistant`
+  (convención documentada del skill LLM), no `system`.
+- `crearVozPersonalizada(nombre, params, extras?)` acepta `extras`
+  `{ icono?, color? }` opcional con validación (icono ≤ 2 grafemas, color
+  `#rrggbb`); sin extras se comporta como antes (★ + paleta).
+- La card vive en `tarjeta-forja-descripcion.tsx`; el editor de sliders
+  queda debajo intacto. No mover la card ni volver a un solo paso sin
+  guardar.

@@ -22,6 +22,7 @@ import { FondoEscena } from '@/components/voz/fondo-escena'
 import { Heroe } from '@/components/voz/heroe'
 import { PestanaAjustes } from '@/components/voz/pestana-ajustes'
 import { PestanaEditor } from '@/components/voz/pestana-editor'
+import { TarjetaForjaDescripcion } from '@/components/voz/tarjeta-forja-descripcion'
 import { PestanaLeer } from '@/components/voz/pestana-leer'
 import { PestanaVoces } from '@/components/voz/pestana-voces'
 import { PiePagina } from '@/components/voz/pie-pagina'
@@ -88,7 +89,10 @@ export default function PaginaInicio() {
               <PestanaLeer />
             </TabsContent>
             <TabsContent value="creador" className="mt-0">
-              <PestanaEditor />
+              <div className="space-y-4">
+                <TarjetaForjaDescripcion />
+                <PestanaEditor />
+              </div>
             </TabsContent>
             <TabsContent value="ajustes" className="mt-0">
               <PestanaAjustes />
