@@ -101,3 +101,21 @@ completa, el modo IA DEGRADA A DSP y el audio nunca se corta.
 - Solo visible si NO hay vía RVC completa. Instalar paquetes no toca la
   cadena DSP ni la config; no volver a hacerlo bloqueante ni con QThread
   propio (mantener el patrón threading.Thread del proyecto).
+
+## Clonación de voz (escritorio) — fundación experimental del dataset
+
+Idea del voice cloning de VoiceStudio, FUNDACIÓN HONESTA (petición
+explícita del usuario): el ENTRENAMIENTO RVC NO existe todavía (GPU +
+cadena aparte). Lo que ya vive en la app:
+
+- `app/engine/dataset.py` (solo stdlib): datasets en
+  `data/clonacion/<sujeto>/` (NO versionada, como lectura/). Cada sujeto
+  tiene `accesos.json` con CONSENTIMIENTO OBLIGATORIO registrado con
+  fecha (sin él, ErrorDataset), muestras WAV copiadas al dataset
+  (rechazo UNO A UNO de no-WAV/corruptos/< 2 s) y umbral objetivo de
+  180 s de voz limpia (suelo honesto de RVC, no el ideal de 10 min).
+- GUI: grupo «🧬 Clonación de voz (preparación experimental)» en Ajustes
+  (sujeto + consentimiento + añadir WAVs en hilo de fondo + resumen del
+  dataset). El texto SIEMPRE dice que prepara datos, no que clone.
+- Tests: `tests/test_dataset.py` (headless, 9 casos). El futuro
+  entrenamiento debe CONSUMIR estos datasets, no inventar otro formato.
