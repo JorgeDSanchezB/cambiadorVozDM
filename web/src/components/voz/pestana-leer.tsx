@@ -414,6 +414,65 @@ export function PestanaLeer() {
 
       <Card>
         <CardHeader className="pb-4">
+          <CardTitle className="text-base">Favoritos</CardTitle>
+          <CardDescription>
+            Tus voces marcadas con la estrella: un clic y quedan elegidas para leer.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {cargandoCatalogo && vocesPersonajes.length === 0 ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Cargando tus favoritas…
+            </p>
+          ) : errorCatalogo && vocesPersonajes.length === 0 ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                <AlertTriangle className="size-4" aria-hidden="true" />
+                El elenco no está disponible ahora mismo.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void cargarCatalogo()}>
+                Reintentar
+              </Button>
+            </div>
+          ) : vocesFyFavoritas.length === 0 ? (
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Star className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              Aún no tienes favoritas: elige un personaje en «¿Quién lee?» y márcalo con la estrella.
+            </p>
+          ) : (
+            <ul
+              className="rol-custom flex max-h-40 flex-wrap content-start gap-2 overflow-y-auto pr-1"
+              aria-label="Voces favoritas"
+            >
+              {vocesFyFavoritas.map((v) => {
+                const esLaElegida = tokenFakeYou === v.token
+                return (
+                  <li key={v.token}>
+                    <Button
+                      variant={esLaElegida ? 'secondary' : 'outline'}
+                      size="sm"
+                      onClick={() => elegir(`fy:${v.token}`)}
+                      aria-pressed={esLaElegida}
+                      className={esLaElegida ? 'ring-1 ring-primary/60' : undefined}
+                    >
+                      <Star
+                        className="size-3.5 shrink-0 fill-amber-400 text-amber-400"
+                        aria-hidden="true"
+                      />
+                      <span className="max-w-52 truncate">{v.titulo}</span>
+                      {esLaElegida && <Check className="size-4 text-primary" aria-hidden="true" />}
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
           <CardTitle className="text-base">Síntesis de voz</CardTitle>
           <CardDescription>
             Narradores con pronunciación española, tus voces y todo el elenco de personajes.
