@@ -235,3 +235,37 @@ class ModuloIA:
                     detener()
                 except Exception:  # noqa: BLE001
                     log.exception("Error al detener el motor IA")
+
+
+def estado_motores() -> dict[str, object]:
+    """Estado real de los motores del modo IA — para el gestor de Ajustes.
+
+    El DSP NO aparece: es la base y SIEMPRE está disponible (degradación
+    garantizada). El modo IA queda «listo» si hay una vía completa de RVC:
+    tts-with-rvc-onnx, u onnxruntime + rmvpe-onnx (pipeline propio).
+    """
+    backend, detalle = _detectar_backend()
+    torch_presente = backend in ("cuda", "directml", "rocm", "mps", "cpu")
+
+    def spec(nombre: str) -> bool:
+        return importlib.util.find_spec(nombre) is not None
+
+    onnxruntime = spec("onnxruntime")
+    rmvpe = spec("rmvpe_onnx")
+    tts_rvc = spec("tts_with_rvc_onnx") or spec("tts_with_rvc")
+    rvc_pytorch = spec("rvc") or spec("rvc_python")
+
+    via_onnx = onnxruntime and rmvpe
+    ia_lista = bool(tts_rvc or via_onnx)
+
+    return {
+        "backend": backend,
+        "detalle_backend": detalle,
+        "torch": torch_presente,
+        "onnxruntime": onnxruntime,
+        "rmvpe_onnx": rmvpe,
+        "tts_with_rvc": tts_rvc,
+        "rvc_pytorch": rvc_pytorch,
+        "ia_lista": ia_lista,
+        "con_gpu": backend not in (None, "cpu", "onnx_cpu"),
+    }

@@ -81,3 +81,23 @@ reflejarse **igual en ambas ramas**. En concreto:
 - Data-driven: slider ranges come from `data/parametros.json`; one voice = one JSON file in `data/voces/` with a guaranteed `neutral` voice. Add/extend voices via JSON, not code.
 - Tolerant to corrupt/missing JSON (config, voices, params): degrade with a banner/avisos, never block startup.
 - No comments unless they carry real value; avoid adding emojis to files.
+
+## Gestor de motores IA (Ajustes escritorio) — estilo Model Manager
+
+Idea de VoiceStudio (implementación propia): el grupo «🧠 Modo avanzado
+(IA)» de la pestaña Ajustes muestra el ESTADO REAL de cada pieza del modo
+IA vía `estado_motores()` (modulo_ia.py): PyTorch, onnxruntime,
+rmvpe-onnx, tts-with-rvc — y la conclusión honesta: si no hay vía RVC
+completa, el modo IA DEGRADA A DSP y el audio nunca se corta.
+
+- Botón «⬇️ Instalar vía ONNX (CPU)» instala `rmvpe-onnx + onnxruntime`
+  con el MISMO Python de la app (sys.executable) en un HILO DE FONDO
+  (threading.Thread daemon, igual que el resto de la GUI) y avisa por
+  señal Qt (`senal_ia_instalado`, queued desde hilo no-GUI). NUNCA
+  bloquear la GUI con subprocess.run en el hilo principal.
+- Tras instalar con éxito: `importlib.invalidate_caches()` + relectura de
+  estado (sin reiniciar la app). Si pip falla, se muestra la cola de su
+  salida y la app sigue en DSP.
+- Solo visible si NO hay vía RVC completa. Instalar paquetes no toca la
+  cadena DSP ni la config; no volver a hacerlo bloqueante ni con QThread
+  propio (mantener el patrón threading.Thread del proyecto).
