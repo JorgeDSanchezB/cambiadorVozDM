@@ -119,3 +119,21 @@ cadena aparte). Lo que ya vive en la app:
   dataset). El texto SIEMPRE dice que prepara datos, no que clone.
 - Tests: `tests/test_dataset.py` (headless, 9 casos). El futuro
   entrenamiento debe CONSUMIR estos datasets, no inventar otro formato.
+
+## Packs de voces (escritorio) — compartir el elenco
+
+Idea de los Model Packs de VoiceStudio (petición explícita del usuario):
+grupo «🎒 Packs de voces» en Ajustes. `app/engine/packs.py` (solo stdlib):
+
+- **Exportar**: ZIP con `pack.json` de manifiesto + `voces/*.json`
+  (excluye SIEMPRE la Neutral: es la voz de seguridad integrada).
+- **Importar conservador**: ids REGENERADOS (uuid4, jamás pisa las voces
+  del que importa), omitir la Neutral, omitir nombres duplicados con
+  aviso, ZIP roto o sin manifiesto → ErrorPack honesto. Tras importar,
+  `senal_pack_importado` → main_window `_recargar_voces` (mismo camino
+  que la recarga manual).
+- **Formatos NO compatibles**: el pack del escritorio es ZIP; el de la
+  web es JSON (tarjeta «Pack de voces» en Ajustes web, con la misma
+  política conservadora). La UI lo dice en ambas plataformas. No unificar
+  formatos sin petición explícita del usuario.
+- Tests: `tests/test_packs.py` (6 casos headless con gestores reales).

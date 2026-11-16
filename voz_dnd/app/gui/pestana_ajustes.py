@@ -17,6 +17,7 @@ import logging
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from PyQt6.QtGui import QKeySequence
@@ -63,19 +64,25 @@ class PestanaAjustes(QWidget):
     senal_config_actualizada = pyqtSignal(object)  # ConfigApp
     senal_ia_instalado = pyqtSignal(bool, str)  # ok, resumen (emitida desde el hilo de fondo)
     senal_dataset_listo = pyqtSignal(bool, str)  # ok, resumen (hilo de fondo, copia de WAVs)
+    senal_pack_listo = pyqtSignal(bool, str)  # ok, resumen (hilo de fondo, ZIP del pack)
+    senal_pack_importado = pyqtSignal()  # tras importar un pack: recargar el elenco
 
     def __init__(self, cfg: ConfigApp, voces: list[IVoiceProfile],
-                 tema: Tema | None = None):
+                 tema: Tema | None = None, gestor=None):
         super().__init__()
         self._cfg = cfg
         self._voces = voces
         self._tema = tema or CLARO
+        # GestorVoces opcional: necesario para los packs (export/import).
+        # Si falta (p. ej. un test), los botones de packs se desactivan.
+        self._gestor = gestor
         self._editores_atajo: dict[str, QKeySequenceEdit] = {}  # id → editor
         self._form_atajos: QFormLayout | None = None
         # El resultado de la instalación (hilo de fondo) llega por señal
         # (queued automáticamente desde un hilo no-GUI) y se pinta aquí.
         self.senal_ia_instalado.connect(self._al_terminar_instalacion)
         self.senal_dataset_listo.connect(self._al_terminar_dataset)
+        self.senal_pack_listo.connect(self._al_terminar_pack)
 
         contenido = QWidget()
         raiz = QVBoxLayout(contenido)
@@ -218,6 +225,34 @@ class PestanaAjustes(QWidget):
         nota_clon.setWordWrap(True)
         form_clon.addRow(nota_clon)
         raiz.addWidget(grupo_clon)
+
+        # ---------------------- Packs de voces --------------------- #
+        grupo_pack = QGroupBox("🎒 Packs de voces (compartir el elenco)")
+        form_pack = QFormLayout(grupo_pack)
+        fila_pack = QHBoxLayout()
+        self.boton_pack_exportar = QPushButton("⬇️ Exportar pack (ZIP)")
+        self.boton_pack_exportar.setToolTip(
+            "Crea un ZIP con las voces del catálogo propio (sin la Neutral) "
+            "para compartir con otros DMs.")
+        self.boton_pack_exportar.clicked.connect(self._exportar_pack)
+        self.boton_pack_importar = QPushButton("⬆️ Importar pack (ZIP)")
+        self.boton_pack_importar.setToolTip(
+            "Añade las voces de un pack: ids nuevos, sin pisar tus voces; "
+            "la Neutral y los nombres duplicados se omiten con aviso.")
+        self.boton_pack_importar.clicked.connect(self._importar_pack)
+        fila_pack.addWidget(self.boton_pack_exportar)
+        fila_pack.addWidget(self.boton_pack_importar)
+        form_pack.addRow(fila_pack)
+        nota_pack = QLabel(
+            "Honesto: los packs llevan solo voces (JSON). Las muestras de "
+            "clonación y tus ajustes personales no viajan en el ZIP.")
+        nota_pack.setWordWrap(True)
+        form_pack.addRow(nota_pack)
+        raiz.addWidget(grupo_pack)
+        if self._gestor is None:
+            # Sin gestor (p. ej. un test headless) los packs no aplican.
+            self.boton_pack_exportar.setEnabled(False)
+            self.boton_pack_importar.setEnabled(False)
 
         # -------------------------- Atajos ------------------------- #
         grupo_atajos = QGroupBox("⌨️ Atajos de teclado (F1…F12 recomendado)")
@@ -428,6 +463,69 @@ class PestanaAjustes(QWidget):
         else:
             QMessageBox.critical(self, "No se pudo actualizar el dataset", resumen)
         log.info("Dataset: ok=%s (%s)", ok, resumen)
+
+    # --------------------------- packs de voces ----------------------------- #
+    def _exportar_pack(self) -> None:
+        """ZIP con las voces propias; hilo de fondo + resultado honesto."""
+        destino, _ = QFileDialog.getSaveFileName(
+            self, "Guardar pack de voces",
+            f"pack_voces_forja_{time.strftime('%Y%m%d')}.zip",
+            "Pack de voces (*.zip)")
+        if not destino:
+            return
+        self.boton_pack_exportar.setEnabled(False)
+
+        def en_hilo() -> None:
+            ok = True
+            resumen = ""
+            try:
+                resultado = exportar_pack(Path(destino), self._gestor)
+                resumen = (f"Pack creado con {resultado['total']} voz(es): "
+                           f"{resultado['destino']}")
+            except Exception as exc:  # noqa: BLE001
+                ok = False
+                resumen = str(exc)
+            self.senal_pack_listo.emit(ok, resumen)
+
+        threading.Thread(target=en_hilo, daemon=True).start()
+
+    def _importar_pack(self) -> None:
+        """Añade las voces del pack (ids nuevos) y recarga el elenco."""
+        origen, _ = QFileDialog.getOpenFileName(
+            self, "Abrir pack de voces", "", "Pack de voces (*.zip)")
+        if not origen:
+            return
+        self.boton_pack_importar.setEnabled(False)
+
+        def en_hilo() -> None:
+            ok = True
+            resumen = ""
+            try:
+                resultado = importar_pack(Path(origen), self._gestor)
+                partes = [f"{len(resultado['anadidas'])} voz(es) añadidas"]
+                if resultado["omitidas"]:
+                    partes.append(f"{len(resultado['omitidas'])} omitidas")
+                resumen = " · ".join(partes)
+                if resultado["omitidas"]:
+                    resumen += "\n" + "\n".join(
+                        f"  · {o}" for o in resultado["omitidas"][:10])
+            except Exception as exc:  # noqa: BLE001
+                ok = False
+                resumen = str(exc)
+            self.senal_pack_listo.emit(ok, resumen)
+
+        threading.Thread(target=en_hilo, daemon=True).start()
+
+    def _al_terminar_pack(self, ok: bool, resumen: str) -> None:
+        self.boton_pack_exportar.setEnabled(True)
+        self.boton_pack_importar.setEnabled(True)
+        if ok:
+            QMessageBox.information(self, "Pack de voces", resumen)
+            if self.sender() is self.boton_pack_importar or "añadida" in resumen:
+                self.senal_pack_importado.emit()
+        else:
+            QMessageBox.critical(self, "Pack de voces", resumen)
+        log.info("Pack de voces: ok=%s (%s)", ok, resumen.replace(chr(10), "; "))
 
     # ------------------------------ guardar --------------------------------- #
     def _refrescar_latencia(self) -> None:
