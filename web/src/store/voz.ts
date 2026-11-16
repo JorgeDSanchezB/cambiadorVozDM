@@ -12,10 +12,12 @@ import {
   cargarVocesBase,
   crearVozPersonalizada,
   escribirAjustes,
+  escribirAtajosGuardados,
   escribirIdsVocesOcultas,
   escribirVocesPersonalizadas,
   escribirVozActiva,
   leerAjustes,
+  leerAtajosGuardados,
   leerIdsVocesOcultas,
   leerVocesPersonalizadas,
   leerVozActiva,
@@ -40,6 +42,10 @@ interface EstadoApp {
   vocesOcultas: Voz[]
   vozActivaId: string
   ajustes: Ajustes
+  /** Overrides de atajos sobre las voces base (la del catálogo es sugerencia inicial). */
+  atajosGuardados: Record<string, string | null>
+  /** Id de la voz cuya tecla se está capturando en Ajustes (null = captura apagada). */
+  capturandoAtajoId: string | null
   estadoMotor: EstadoMotor
   grabando: boolean
   grabacion: ResultadoGrabacion | null
@@ -57,6 +63,9 @@ interface EstadoApp {
   ocultarVoz(id: string): void
   restaurarVoz(id: string): void
   restaurarVocesOcultas(): void
+  iniciarCapturaAtajo(id: string | null): void
+  asignarAtajo(id: string, combo: string | null): void
+  restaurarAtajosSugeridos(): void
 
   iniciarMotor(): Promise<void>
   pararMotor(): void
@@ -92,6 +101,8 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
   vocesOcultas: [],
   vozActivaId: '',
   ajustes: AJUSTES_POR_DEFECTO,
+  atajosGuardados: {},
+  capturandoAtajoId: null,
   estadoMotor: 'detenido',
   grabando: false,
   grabacion: null,
@@ -105,12 +116,20 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     const custom = leerVocesPersonalizadas()
     const { ajustes, aviso: avisoAjustes } = leerAjustes()
     const { ids: idsOcultos, aviso: avisoOcultos } = leerIdsVocesOcultas()
+    const atajosGuardados = leerAtajosGuardados()
+
+    // Los atajos decididos por el usuario (Ajustes) se aplican sobre el catálogo
+    // cargado; el dato generado nunca se toca. También cubre las voces ocultas
+    // para que, al restaurarlas, conserven la tecla que tenían.
+    const conAtajos = base.voces.map((v) =>
+      v.id in atajosGuardados ? { ...v, atajo: atajosGuardados[v.id] } : v,
+    )
 
     // Voces base quitadas de la lista (restaurables). La Neutral JAMÁS queda
     // oculta aunque el dato la incluya: es la voz de seguridad del arranque.
     const ocultasSet = new Set(idsOcultos)
-    const ocultas = base.voces.filter((v) => ocultasSet.has(v.id) && v.nombre !== 'Neutral')
-    const visibles = base.voces.filter((v) => !ocultasSet.has(v.id) || v.nombre === 'Neutral')
+    const ocultas = conAtajos.filter((v) => ocultasSet.has(v.id) && v.nombre !== 'Neutral')
+    const visibles = conAtajos.filter((v) => !ocultasSet.has(v.id) || v.nombre === 'Neutral')
     const voces = [...visibles, ...custom.voces]
 
     const guardada = leerVozActiva()
@@ -131,7 +150,15 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
 
     if (inicial) motor.fijarParametros(inicial.parametros_dsp)
 
-    set({ listo: true, voces, vocesOcultas: ocultas, vozActivaId: inicial?.id ?? '', ajustes, estadoMotor: motor.estado })
+    set({
+      listo: true,
+      voces,
+      vocesOcultas: ocultas,
+      vozActivaId: inicial?.id ?? '',
+      ajustes,
+      atajosGuardados,
+      estadoMotor: motor.estado,
+    })
 
     const avisos = [base.aviso, custom.aviso, avisoAjustes, avisoOcultos].filter(Boolean).join(' ')
     if (avisos) {
@@ -281,6 +308,119 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
     })
   },
 
+  // Modo captura de Ajustes: marca qué voz espera una tecla (y silencia el
+  // gancho global de atajos mientras tanto).
+  iniciarCapturaAtajo(id) {
+    set({ capturandoAtajoId: id })
+  },
+
+  // Asignación manual de atajos. La tecla es propiedad exclusiva: si otra voz
+  // (visible u oculta) ya la tenía, se la quitamos y avisamos. Las voces base
+  // persisten como override (el catálogo no se toca); las personalizadas,
+  // dentro de su propio dato en localStorage.
+  asignarAtajo(id, combo) {
+    const voces = get().voces
+    const voz = voces.find((v) => v.id === id)
+    if (!voz) return
+    if ((voz.atajo ?? null) === combo) {
+      set({ capturandoAtajoId: null })
+      return
+    }
+
+    const overrides: Record<string, string | null> = { ...get().atajosGuardados }
+    const personalizadasCambiadas: Voz[] = []
+    let robadaDe: string | null = null
+
+    if (combo) {
+      const duena = [...get().voces, ...get().vocesOcultas].find(
+        (v) => v.id !== id && v.atajo === combo,
+      )
+      if (duena) {
+        robadaDe = duena.nombre
+        if (duena.personalizada) personalizadasCambiadas.push({ ...duena, atajo: null })
+        else overrides[duena.id] = null
+      }
+    }
+
+    if (voz.personalizada) personalizadasCambiadas.push({ ...voz, atajo: combo })
+    else overrides[id] = combo
+
+    if (personalizadasCambiadas.length > 0) {
+      const cambiadas = new Map(personalizadasCambiadas.map((v) => [v.id, v]))
+      const mezcla = get().voces
+        .filter((v) => v.personalizada)
+        .map((v) => cambiadas.get(v.id) ?? v)
+      if (!escribirVocesPersonalizadas(mezcla)) {
+        toast.error('No se pudo guardar el atajo', {
+          description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+        })
+        return
+      }
+    }
+    if (!escribirAtajosGuardados(overrides)) {
+      toast.error('No se pudo guardar el atajo', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+
+    const cambiadas = new Map(personalizadasCambiadas.map((v) => [v.id, v]))
+    const vocesNuevas = voces.map((v) => {
+      if (cambiadas.has(v.id)) return cambiadas.get(v.id)!
+      if (v.id in overrides) return { ...v, atajo: overrides[v.id] }
+      return v
+    })
+    const ocultasNuevas = get().vocesOcultas.map((v) =>
+      v.id in overrides ? { ...v, atajo: overrides[v.id] } : v,
+    )
+    set({
+      voces: vocesNuevas,
+      vocesOcultas: ocultasNuevas,
+      atajosGuardados: overrides,
+      capturandoAtajoId: null,
+    })
+
+    if (combo === null) {
+      toast.success(`Atajo de «${voz.nombre}» quitado`)
+    } else if (robadaDe) {
+      toast.warning(`Atajo ${combo} asignado a «${voz.nombre}»`, {
+        description: `Estaba en «${robadaDe}», que se queda sin atajo.`,
+      })
+    } else {
+      toast.success(`Atajo ${combo} asignado a «${voz.nombre}»`)
+    }
+  },
+
+  // Vuelve a la asignación sugerida por el catálogo: borra todos los overrides
+  // (base) y deja sin tecla las personalizadas, que nacen sin atajo.
+  restaurarAtajosSugeridos() {
+    const sinCambios =
+      Object.keys(get().atajosGuardados).length === 0 &&
+      !get().voces.some((v) => v.personalizada && v.atajo)
+    if (sinCambios) return
+    if (!escribirAtajosGuardados({})) {
+      toast.error('No se pudieron restaurar los atajos', {
+        description: 'El almacenamiento local rechazó la escritura (¿modo privado?).',
+      })
+      return
+    }
+    const personalizadas = get()
+      .voces.filter((v) => v.personalizada)
+      .map((v) => ({ ...v, atajo: null }))
+    if (personalizadas.length > 0) escribirVocesPersonalizadas(personalizadas)
+
+    const base = cargarVocesBase()
+    const ocultasSet = new Set(get().vocesOcultas.map((v) => v.id))
+    set({
+      voces: [...base.voces.filter((v) => !ocultasSet.has(v.id) || v.nombre === 'Neutral'), ...personalizadas],
+      vocesOcultas: base.voces.filter((v) => ocultasSet.has(v.id) && v.nombre !== 'Neutral'),
+      atajosGuardados: {},
+    })
+    toast.success('Atajos de fábrica restaurados', {
+      description: 'La asignación sugerida por el catálogo vuelve a mandar.',
+    })
+  },
+
   async iniciarMotor() {
     const { ajustes } = get()
     try {
@@ -423,6 +563,7 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
       window.localStorage.removeItem('voz_dnd_web.ajustes')
       window.localStorage.removeItem('voz_dnd_web.voz_activa')
       window.localStorage.removeItem('voz_dnd_web.voces_ocultas')
+      window.localStorage.removeItem('voz_dnd_web.atajos')
     } catch {
       /* modo privado: seguir con los valores en memoria */
     }
@@ -436,6 +577,8 @@ export const useVozStore = create<EstadoApp>((set, get) => ({
       vocesOcultas: [],
       vozActivaId: neutral.id,
       ajustes: AJUSTES_POR_DEFECTO,
+      atajosGuardados: {},
+      capturandoAtajoId: null,
     })
     toast.success('Datos restablecidos', {
       description: 'Voces personalizadas, ocultas y ajustes vuelven a los valores base.',

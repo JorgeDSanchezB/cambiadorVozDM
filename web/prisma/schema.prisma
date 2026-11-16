@@ -30,3 +30,31 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// === Voces de personajes (FakeYou) ===
+
+// Cada generación pedida a FakeYou: se cachea el WAV en base64 para no
+// repetir inferencias (el límite anónimo es muy estricto).
+model GeneracionPersonaje {
+  id         String   @id @default(cuid())
+  modelToken String
+  tituloVoz  String
+  texto      String
+  estado     String // pendiente | listo | error
+  jobToken   String?
+  audioB64   String?
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([modelToken, texto(200)])
+  @@index([createdAt])
+}
+
+// Voces marcadas con estrella por el DJ/DM (persisten en el servidor).
+model FavoritoPersonaje {
+  id         String   @id @default(cuid())
+  modelToken String   @unique
+  tituloVoz  String
+  createdAt  DateTime @default(now())
+}

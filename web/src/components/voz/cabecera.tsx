@@ -1,14 +1,15 @@
-// Barra superior — espejo de la barra del escritorio: estado del micrófono,
-// pausa/reanudar, monitor, medidor de nivel y grabación post-DSP.
+// Barra de mando — transporte del micrófono: estado, nivel, pausa/reanudar,
+// monitor, grabación post-DSP y descarga. Espejo de la barra del escritorio
+// con el mismo comportamiento, ahora con el lenguaje visual de la forja.
 
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Circle, Download, Headphones, Mic, MicOff, Pause, Play, Volume2 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Circle, Download, Flame, Headphones, Mic, MicOff, Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 import { motor } from '@/lib/motor-audio'
 import { useVozStore } from '@/store/voz'
 
@@ -32,29 +33,39 @@ function MedidorNivel() {
     return () => cancelAnimationFrame(raf)
   }, [estadoMotor])
 
+  // Apagado no se pinta: una regla vacía sin señal parece un artefacto.
+  if (estadoMotor === 'detenido' || estadoMotor === 'iniciando') return null
+
   return (
     <div
       aria-hidden="true"
-      className="hidden h-2 w-24 overflow-hidden rounded-full bg-muted sm:block"
-      title="Medidor de nivel (dBFS)"
+      className="relative hidden h-2 w-28 overflow-hidden rounded-full bg-muted/80 sm:block"
+      title="Nivel del micrófono (dBFS)"
     >
-      <div ref={barra} className="h-full w-0 rounded-full bg-primary" />
+      <div
+        ref={barra}
+        className="h-full w-0 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500 transition-[width] duration-75"
+      />
+      {/* Separaciones de LED sobre la barra. */}
+      <div className="pointer-events-none absolute inset-0 [background:repeating-linear-gradient(90deg,transparent_0,transparent_5px,var(--background)_5px,var(--background)_7px)]" />
     </div>
   )
 }
 
-function EstadoMic() {
+function PillEstadoMic() {
   const estadoMotor = useVozStore((s) => s.estadoMotor)
-  if (estadoMotor === 'detenido') {
-    return <Badge variant="outline" className="gap-1.5 text-muted-foreground"><span className="size-1.5 rounded-full bg-muted-foreground/50" />Micrófono detenido</Badge>
-  }
-  if (estadoMotor === 'iniciando') {
-    return <Badge variant="outline" className="gap-1.5"><span className="size-1.5 animate-pulse rounded-full bg-amber-500" />Iniciando…</Badge>
-  }
-  if (estadoMotor === 'pausado') {
-    return <Badge variant="outline" className="gap-1.5"><span className="size-1.5 rounded-full bg-amber-500" />En pausa</Badge>
-  }
-  return <Badge variant="outline" className="gap-1.5"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />Micrófono activo</Badge>
+  const config = {
+    detenido: { texto: 'Micrófono apagado', punto: 'bg-muted-foreground/40', pulso: false },
+    iniciando: { texto: 'Iniciando…', punto: 'bg-amber-400', pulso: true },
+    pausado: { texto: 'En pausa', punto: 'bg-amber-400', pulso: false },
+    activo: { texto: 'En directo', punto: 'bg-emerald-400', pulso: true },
+  }[estadoMotor]
+  return (
+    <span className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-card/60 px-2.5 py-1 text-[11px] whitespace-nowrap text-muted-foreground sm:inline-flex">
+      <span className={cn('size-1.5 rounded-full', config.punto, config.pulso && 'animate-pulse')} aria-hidden="true" />
+      {config.texto}
+    </span>
+  )
 }
 
 export function Cabecera() {
@@ -73,20 +84,23 @@ export function Cabecera() {
   const activo = estadoMotor === 'activo' || estadoMotor === 'pausado'
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3 sm:gap-3">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-2.5 sm:gap-3">
         <div className="mr-auto flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Volume2 className="size-5" aria-hidden="true" />
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 via-orange-600 to-red-800 text-amber-50 shadow-lg shadow-orange-950/50">
+            <Flame className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-base leading-tight font-semibold">Cambiador de Voz DM</h1>
-            <p className="text-xs text-muted-foreground">Versión web · espejo de voz_dnd</p>
+            {/* Marca compacta: el h1 real vive en el héroe (único h1 de la página). */}
+            <p className="font-display text-sm leading-tight font-semibold tracking-wide">
+              <span className="sm:hidden">Voz DM</span>
+              <span className="hidden sm:inline">Cambiador de Voz DM</span>
+            </p>
           </div>
         </div>
 
         <MedidorNivel />
-        <EstadoMic />
+        <PillEstadoMic />
 
         {activo ? (
           <>
@@ -109,15 +123,23 @@ export function Cabecera() {
               variant={grabando ? 'destructive' : 'default'}
               onClick={() => (grabando ? terminarGrabacion() : iniciarGrabacion())}
               title={grabando ? 'Terminar y descargar grabación' : 'Grabar audio procesado (post-DSP)'}
+              className={grabando ? 'animate-pulse shadow-lg shadow-red-950/60' : ''}
             >
-              <Circle className={`size-4 ${grabando ? 'animate-pulse fill-current' : ''}`} />
+              <Circle className={cn('size-4', grabando && 'fill-current')} />
               <span className="hidden sm:inline">{grabando ? 'Terminar' : 'Grabar'}</span>
             </Button>
           </>
         ) : (
           <Button size="sm" onClick={iniciarMotor} disabled={estadoMotor === 'iniciando'}>
             <Mic className="size-4" />
-            {estadoMotor === 'iniciando' ? 'Iniciando…' : 'Iniciar micrófono'}
+            {estadoMotor === 'iniciando' ? (
+              'Iniciando…'
+            ) : (
+              <>
+                <span className="sm:hidden">Iniciar</span>
+                <span className="hidden sm:inline">Iniciar micrófono</span>
+              </>
+            )}
           </Button>
         )}
 

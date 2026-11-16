@@ -21,6 +21,7 @@ const CLAVE_PERSONALIZADAS = 'voz_dnd_web.voces_personalizadas'
 const CLAVE_AJUSTES = 'voz_dnd_web.ajustes'
 const CLAVE_VOZ_ACTIVA = 'voz_dnd_web.voz_activa'
 const CLAVE_OCULTAS = 'voz_dnd_web.voces_ocultas'
+const CLAVE_ATAJOS = 'voz_dnd_web.atajos'
 
 export const AJUSTES_POR_DEFECTO: Ajustes = {
   dispositivoEntrada: null,
@@ -213,6 +214,52 @@ export function leerIdsVocesOcultas(): { ids: string[]; aviso: string | null } {
 export function escribirIdsVocesOcultas(ids: string[]): boolean {
   try {
     window.localStorage.setItem(CLAVE_OCULTAS, JSON.stringify(ids))
+    return true
+  } catch {
+    return false
+  }
+}
+
+// --------------------------------------------------------------------------
+// Atajos de teclado — asignación manual (Ajustes). La tecla que trae cada voz
+// del catálogo es solo una SUGERENCIA inicial; lo que el usuario decide vive
+// aquí como override por id de voz base (string = tecla propia, null explícito
+// = se la quitó). Las voces personalizadas guardan su atajo junto al resto de
+// su dato. Espejo de teclas admitidas: F1–F12, con o sin Shift.
+// --------------------------------------------------------------------------
+
+const REGEX_TECLA_F = /^F([1-9]|1[0-2])$/
+
+/** Normaliza la tecla cruda del teclado al combo del dato («F5», «Shift+F3»); null si no es asignable. */
+export function normalizarAtajo(key: string, conShift: boolean): string | null {
+  if (!REGEX_TECLA_F.test(key)) return null
+  return conShift ? `Shift+${key}` : key
+}
+
+export function leerAtajosGuardados(): Record<string, string | null> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const crudo = window.localStorage.getItem(CLAVE_ATAJOS)
+    if (!crudo) return {}
+    const dato = JSON.parse(crudo)
+    if (typeof dato !== 'object' || dato === null || Array.isArray(dato)) {
+      throw new Error('formato inesperado')
+    }
+    const salida: Record<string, string | null> = {}
+    for (const [id, valor] of Object.entries(dato as Record<string, unknown>)) {
+      if (typeof id !== 'string' || id.length === 0) continue
+      if (valor === null) salida[id] = null
+      else if (typeof valor === 'string' && normalizarAtajo(valor, false)) salida[id] = valor
+    }
+    return salida
+  } catch {
+    return {}
+  }
+}
+
+export function escribirAtajosGuardados(atajos: Record<string, string | null>): boolean {
+  try {
+    window.localStorage.setItem(CLAVE_ATAJOS, JSON.stringify(atajos))
     return true
   } catch {
     return false

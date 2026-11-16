@@ -22,9 +22,11 @@
   RingMod, EQ 3 bandas, Reverb, Ganancia. Vectorizado y RT-safe.
 - **Stream full-duplex** (`motor_audio.py`) con callback RT-safe.
 - **Grabación** post-DSP a MP3 (pydub/ffmpeg) con fallback WAV.
-- **20 voces** en `data/voces/` (incl. `neutral` garantizada): las 4 originales
-  (neutral, goblin, dragon, tabernero) + 16 nuevas (orco, villano_*, bandido,
-  bardo, viejito/a, dios_*, diosa, heroe, goku, chica_inocente, mujer_*).
+- **17 voces** en `data/voces/` (incl. `neutral` garantizada): las 4 originales
+  (neutral, goblin, dragon, tabernero) + 13 nuevas (orco, villano_*, bandido,
+  bardo, viejito/a, dios_*, diosa, heroe, chica_inocente, mujer_madura).
+  **Goku, ia_demo y mujer_decidida fueron ELIMINADAS** a petición del usuario
+  (borrado permanente también reflejado en el catálogo web generado).
 - **Editor data-driven** desde `parametros.json` + preview 2 s + "guardar como
   nueva voz".
 - **Atajos F1–F12 / Shift+F1–F6** configurables en `config.json`.

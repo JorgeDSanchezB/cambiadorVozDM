@@ -29,23 +29,41 @@ export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onB
       aria-pressed={activa}
       onClick={onSeleccionar}
       onKeyDown={(e) => {
+        // Solo activa la selección si el foco está en la propia tarjeta:
+        // los botones internos (probar, ocultar…) deben responder a su
+        // activación nativa con teclado, sin secuestro del keydown.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onSeleccionar()
         }
       }}
       className={cn(
-        'cursor-pointer gap-0 border p-3 transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-        activa && 'border-primary/70 bg-accent/40 shadow-sm ring-1 ring-primary/30',
+        'group relative cursor-pointer gap-0 overflow-hidden border-border/60 bg-card/60 p-3.5 backdrop-blur-sm',
+        'transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/80 hover:shadow-lg hover:shadow-black/30',
+        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-0 active:scale-[0.98]',
+        activa && 'border-primary/60 bg-gradient-to-br from-accent/50 via-card/80 to-card/80 shadow-lg shadow-primary/10',
       )}
     >
+      {/* Línea de luz superior: ámbar si está activa, del color de la voz si no. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'absolute inset-x-3 top-0 h-px',
+          activa ? 'destello-linea bg-gradient-to-r from-transparent via-primary/70 to-transparent' : 'bg-gradient-to-r from-transparent to-transparent',
+        )}
+        style={activa ? undefined : { background: `linear-gradient(90deg, transparent, ${voz.color}66, transparent)` }}
+      />
+
       <div className="flex items-center gap-3">
         <span
           aria-hidden="true"
-          className="w-1.5 self-stretch rounded-full"
-          style={{ backgroundColor: voz.color }}
-        />
-        <span aria-hidden="true" className="text-2xl leading-none select-none">
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-xl leading-none select-none transition-transform duration-200 group-hover:scale-110"
+          style={{
+            backgroundColor: `${voz.color}1f`,
+            boxShadow: `inset 0 0 0 1px ${voz.color}3d`,
+          }}
+        >
           {voz.icono}
         </span>
         <div className="min-w-0 flex-1">
@@ -53,11 +71,11 @@ export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onB
             {voz.nombre}
             {activa && <span className="sr-only">(voz activa)</span>}
           </p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+          <div className="mt-1 flex flex-wrap items-center gap-1">
             {voz.atajo && (
-              <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+              <kbd className="rounded border border-border/70 bg-muted/60 px-1.5 py-px font-mono text-[10px] text-muted-foreground">
                 {voz.atajo}
-              </Badge>
+              </kbd>
             )}
             {voz.tipo === 'IA' && (
               <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
@@ -71,11 +89,11 @@ export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onB
             )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           <Button
             size="icon"
             variant="ghost"
-            className="size-8"
+            className="size-9 text-muted-foreground hover:text-foreground"
             disabled={probando}
             onClick={(e) => {
               e.stopPropagation()
@@ -90,7 +108,7 @@ export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onB
             <Button
               size="icon"
               variant="ghost"
-              className="size-8 text-muted-foreground hover:text-destructive"
+              className="size-9 text-muted-foreground hover:text-destructive"
               onClick={(e) => {
                 e.stopPropagation()
                 onBorrar()
@@ -105,7 +123,7 @@ export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onB
             <Button
               size="icon"
               variant="ghost"
-              className="size-8 text-muted-foreground hover:text-destructive"
+              className="size-9 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:text-destructive"
               onClick={(e) => {
                 e.stopPropagation()
                 onOcultar()

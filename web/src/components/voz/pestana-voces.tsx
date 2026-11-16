@@ -9,10 +9,8 @@ import { toast } from 'sonner'
 import { Eye, EyeOff, Search, SlidersHorizontal } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { clasificarError } from '@/lib/errores'
-import { resumenParametros } from '@/lib/voces'
 import { probarVoz } from '@/lib/tts'
 import type { Voz } from '@/lib/tipos'
 import { useVozStore } from '@/store/voz'
@@ -38,8 +36,6 @@ export function PestanaVoces() {
     return voces.filter((v) => normalizar(v.nombre).includes(q))
   }, [voces, busqueda])
 
-  const activa = voces.find((v) => v.id === vozActivaId)
-
   const probar = async (voz: Voz) => {
     if (probandoId) return
     setProbandoId(voz.id)
@@ -55,47 +51,21 @@ export function PestanaVoces() {
 
   return (
     <div className="space-y-4">
-      {activa && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <span aria-hidden="true" className="text-xl">{activa.icono}</span>
-              Voz activa: {activa.nombre}
-              {activa.atajo && <Badge variant="outline">{activa.atajo}</Badge>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex flex-wrap gap-1.5">
-              {resumenParametros(activa.parametros_dsp).map((chip) => (
-                <Badge key={chip.etiqueta} variant="secondary" className="font-normal">
-                  {chip.etiqueta}: {chip.texto}
-                </Badge>
-              ))}
-              {resumenParametros(activa.parametros_dsp).length === 0 && (
-                <span className="text-sm text-muted-foreground">
-                  Cadena neutra: la voz pasa sin efectos (paso directo).
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Ajusta los parámetros en la pestaña Editor o selecciona otra voz para cambiar en vivo.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* La voz activa vive en el monitor del héroe (arriba): aquí solo el
+          catálogo, sin duplicar información. */}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-52">
+        <div className="relative min-w-52 flex-1">
           <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar voz por nombre…"
-            className="pl-8"
+            className="border-border bg-card/70 pl-8 backdrop-blur-sm"
             aria-label="Buscar voz por nombre"
           />
         </div>
-        <Badge variant="outline" className="gap-1">
+        <Badge variant="outline" className="h-9 gap-1 border-border bg-card/50 px-3">
           <SlidersHorizontal className="size-3" aria-hidden="true" />
           {filtradas.length} de {voces.length}
         </Badge>
@@ -134,12 +104,6 @@ export function PestanaVoces() {
           </p>
         )}
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        El botón de reproducción sintetiza una frase corta con los efectos de esa voz (requiere conexión).
-        Las voces base se quitan con el botón del ojo tachado y se restauran aquí mismo o en Ajustes;
-        las personalizadas se eliminan (con deshacer). Atajos F1–F12 y Shift+F1–F6 según el catálogo.
-      </p>
     </div>
   )
 }

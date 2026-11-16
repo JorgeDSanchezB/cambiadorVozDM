@@ -13,18 +13,39 @@ import { motor } from './motor-audio'
 import { audioBufferAWav, descargarBlob, marcaDeTiempo } from './wav'
 import type { ParametrosDSP } from './tipos'
 
+// Voz base del servidor. Con el SDK solo hay 7 voces y se evaluaron con ASR
+// leyendo español («Bienvenidos, aventureros, a la mazmorra del dragón»):
+//   - tongtong (212 Hz, mujer): transcripción EXACTA → es la voz base.
+//   - luodo (270 Hz): «Buying Vinus Adventures» → fonética inglesa, descartada.
+//   - xiaochen (126 Hz, el único hombre): «Andros Andros a la Mysmora» → ininteligible.
+//   - chuichui: «Bienavidos» · jam/kazi/douji (247/258/192 Hz, todas mujer):
+//     pronunciación irregular. Descartadas.
+// El narrador MASCULINO se forja con la cadena DSP sobre esta base (ver
+// PRESET_NARRADOR_HOMBRE): la fonética española sobrevive al cambio de tono
+// (verificado con ASR).
 export const VOCES_SERVIDOR = [
-  { id: 'tongtong', nombre: 'Tongtong · cálida' },
-  { id: 'chuichui', nombre: 'Chuichui · vivaz' },
-  { id: 'xiaochen', nombre: 'Xiaochen · serena' },
-  { id: 'jam', nombre: 'Jam · caballeresca' },
-  { id: 'kazi', nombre: 'Kazi · clara' },
-  { id: 'douji', nombre: 'Douji · natural' },
-  { id: 'luodo', nombre: 'Luodo · expresiva' },
+  { id: 'tongtong', nombre: 'Narradora · mujer' },
 ] as const
 
 export type IdVozServidor = (typeof VOCES_SERVIDOR)[number]['id']
 export const VOZ_SERVIDOR_POR_DEFECTO: IdVozServidor = 'tongtong'
+
+// Narrador masculino integrado: la base femenina pasada por la cadena DSP
+// (tono −5 st, garganta 1.25× más grande, pecho en graves). Verificado: la
+// pronunciación española se conserva. Vive aquí para que la lectura y la
+// descarga WAV usen EXACTAMENTE la misma cadena.
+export const PRESET_NARRADOR_HOMBRE: ParametrosDSP = {
+  pitch_semitonos: -5,
+  formant_shift: 1.25,
+  reverb_room_size: 0,
+  reverb_damping: 0.5,
+  distortion_drive: 0,
+  gain_db: 0,
+  ring_mod_freq: 0,
+  eq_low_db: 2.5,
+  eq_mid_db: -1,
+  eq_high_db: -1.5,
+}
 
 export const FRAGMENTO_MAX_CHARS = 900
 export const FRASE_DEMO = '¡Saludos, aventureros! Esta es la voz que has elegido para tu partida.'
@@ -111,43 +132,78 @@ export async function sintetizarFragmento(
 
 export interface OpcionesLectura {
   texto: string
-  voz: IdVozServidor
   velocidad: number
-  conEfectos: boolean
+  /**
+   * Cadena DSP del personaje que narra. `undefined` = voz base sin efectos
+   * (narradora femenina). Si se da, la cadena de lectura toma estos
+   * parámetros durante la lectura y vuelve a los de la voz activa al final.
+   */
+  parametros?: ParametrosDSP
   onProgreso?: (p: ProgresoLectura) => void
   senal?: AbortSignal
 }
 
-// Lee con el servidor y reproduce cada fragmento por la cadena de la voz
-// activa, en orden y sin solaparse.
+// Lee con el servidor y reproduce cada fragmento en orden y sin solaparse.
+// Con `parametros`, cada fragmento pasa por la cadena del personaje elegido
+// (misma matemática del worklet que «Probar voz»); sin ellos, suena la voz
+// neural tal cual. Al terminar, la cadena vuelve a los parámetros de la voz
+// activa para no contaminar otras previsualizaciones.
 export async function leerConServidor(opciones: OpcionesLectura): Promise<void> {
   const fragmentos = fragmentarTexto(opciones.texto)
   if (fragmentos.length === 0) return
   await motor.ensureContexto()
+  if (opciones.parametros) motor.fijarParametrosLectura(opciones.parametros)
 
-  for (let i = 0; i < fragmentos.length; i++) {
-    if (opciones.senal?.aborted) return
-    opciones.onProgreso?.({ fase: 'sintetizando', fragmento: i + 1, total: fragmentos.length })
-    const datos = await sintetizarFragmento(fragmentos[i], opciones.voz, opciones.velocidad, opciones.senal)
-    if (opciones.senal?.aborted) return
-    const buffer = await motor.decodificar(datos)
-    opciones.onProgreso?.({ fase: 'reproduciendo', fragmento: i + 1, total: fragmentos.length })
-    await motor.reproducirBuffer(buffer, opciones.conEfectos)
+  try {
+    for (let i = 0; i < fragmentos.length; i++) {
+      if (opciones.senal?.aborted) return
+      opciones.onProgreso?.({ fase: 'sintetizando', fragmento: i + 1, total: fragmentos.length })
+      const datos = await sintetizarFragmento(fragmentos[i], VOZ_SERVIDOR_POR_DEFECTO, opciones.velocidad, opciones.senal)
+      if (opciones.senal?.aborted) return
+      const buffer = await motor.decodificar(datos)
+      opciones.onProgreso?.({ fase: 'reproduciendo', fragmento: i + 1, total: fragmentos.length })
+      await motor.reproducirBuffer(buffer, Boolean(opciones.parametros))
+    }
+    opciones.onProgreso?.({ fase: 'fin', fragmento: fragmentos.length, total: fragmentos.length })
+  } finally {
+    if (opciones.parametros) motor.restaurarParametrosLectura()
   }
-  opciones.onProgreso?.({ fase: 'fin', fragmento: fragmentos.length, total: fragmentos.length })
 }
 
 // Respaldo sin red: la voz del navegador (sin efectos DSP — el navegador no
 // permite enrutar speechSynthesis por Web Audio; degradación honesta).
-export function leerConNavegador(texto: string, senal?: AbortSignal): Promise<void> {
-  return new Promise((resolver, rechazar) => {
+// getVoices() llega VACÍO la primera vez en Chrome (las voces cargan async):
+// sin esta espera el utterance sale con la voz por defecto del sistema y el
+// español se lee con fonética inglesa (bug reportado por el usuario).
+function esperarVoces(timeoutMs = 2000): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolver) => {
+    if (typeof speechSynthesis === 'undefined') return resolver([])
+    const primeras = speechSynthesis.getVoices()
+    if (primeras.length > 0) return resolver(primeras)
+    const temporizador = setTimeout(() => resolver(speechSynthesis.getVoices()), timeoutMs)
+    speechSynthesis.addEventListener(
+      'voiceschanged',
+      () => {
+        clearTimeout(temporizador)
+        resolver(speechSynthesis.getVoices())
+      },
+      { once: true },
+    )
+  })
+}
+
+export async function leerConNavegador(texto: string, senal?: AbortSignal): Promise<void> {
+  return new Promise(async (resolver, rechazar) => {
     if (typeof speechSynthesis === 'undefined') {
       rechazar(clasificarError(new Error('speechSynthesis no disponible'), 'tts'))
       return
     }
+    const voces = await esperarVoces()
     const utterance = new SpeechSynthesisUtterance(texto)
-    const voces = speechSynthesis.getVoices()
-    const es = voces.find((v) => v.lang.toLowerCase().startsWith('es'))
+    // Español primero: es-ES/es-MX/es-419 antes que cualquier otro «es».
+    const es =
+      voces.find((v) => /^es-(ES|MX|419|AR|CL|CO)$/i.test(v.lang)) ??
+      voces.find((v) => v.lang.toLowerCase().startsWith('es'))
     if (es) utterance.voice = es
     utterance.lang = es?.lang ?? 'es-ES'
     const alAbortar = () => {
@@ -172,11 +228,10 @@ export function detenerLecturaNavegador(): void {
   if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel()
 }
 
-// Descarga el WAV de la lectura con la voz aplicada (espejo del "guardar
-// WAV" del escritorio): render offline con la MISMA cadena del worklet.
-export async function descargarWavLectura(opciones: OpcionesLectura & {
-  parametros: ParametrosDSP
-}): Promise<void> {
+// Descarga el WAV de la lectura (espejo del "guardar WAV" del escritorio):
+// render offline con la cadena del personaje si se pidió, o el audio
+// neural tal cual si no.
+export async function descargarWavLectura(opciones: OpcionesLectura): Promise<void> {
   const fragmentos = fragmentarTexto(opciones.texto)
   if (fragmentos.length === 0) return
   const ctx = await motor.ensureContexto()
@@ -185,7 +240,7 @@ export async function descargarWavLectura(opciones: OpcionesLectura & {
   for (let i = 0; i < fragmentos.length; i++) {
     if (opciones.senal?.aborted) return
     opciones.onProgreso?.({ fase: 'sintetizando', fragmento: i + 1, total: fragmentos.length })
-    const datos = await sintetizarFragmento(fragmentos[i], opciones.voz, opciones.velocidad, opciones.senal)
+    const datos = await sintetizarFragmento(fragmentos[i], VOZ_SERVIDOR_POR_DEFECTO, opciones.velocidad, opciones.senal)
     buffers.push(await ctx.decodeAudioData(datos))
   }
 
@@ -202,7 +257,7 @@ export async function descargarWavLectura(opciones: OpcionesLectura & {
   const combinado = ctx.createBuffer(1, total, sr)
   combinado.copyToChannel(plano, 0)
 
-  const renderizado = opciones.conEfectos
+  const renderizado = opciones.parametros
     ? await motor.renderizarOffline(combinado, opciones.parametros)
     : combinado
   const blob = audioBufferAWav(renderizado)

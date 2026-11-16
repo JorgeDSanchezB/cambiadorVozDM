@@ -1,19 +1,18 @@
-// Pie de página — fijo al fondo (regla de layout), recuerda la regla de
-// espejo entre ramas del repo.
-
-'use client'
-
-import { useVozStore } from '@/store/voz'
+// Pie de página — fijo al fondo (regla de layout), solo con el adorno
+// ornamental de la forja. Sin texto: el usuario final no necesita metadatos.
 
 export function PiePagina() {
-  const total = useVozStore((s) => s.voces.length)
   return (
-    <footer className="mt-auto border-t bg-muted/50">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground">
-        <span>Cambiador de Voz DM · versión web (espejo de voz_dnd)</span>
-        <span>
-          {total} voces · rama feat/web-app · todo cambio se refleja en ambas ramas
-        </span>
+    <footer className="mt-auto border-t border-border/60 bg-card/30 backdrop-blur-sm">
+      <div className="mx-auto max-w-6xl px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center justify-center gap-3" aria-hidden="true">
+          <span className="h-px max-w-28 flex-1 bg-gradient-to-r from-transparent to-border" />
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/40" />
+            <span className="relative inline-flex size-2 rounded-full bg-primary/70" />
+          </span>
+          <span className="h-px max-w-28 flex-1 bg-gradient-to-l from-transparent to-border" />
+        </div>
       </div>
     </footer>
   )

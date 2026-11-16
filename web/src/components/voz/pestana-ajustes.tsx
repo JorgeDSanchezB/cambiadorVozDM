@@ -1,10 +1,11 @@
-// Pestaña Ajustes — espejo de config.json: dispositivo de entrada, frecuencia
-// objetivo, monitor, atajos y gestión de datos locales. Persistencia en
-// localStorage con tolerancia a datos corruptos.
+// Pestaña Ajustes — dispositivo de entrada, frecuencia objetivo, monitor,
+// atajos de teclado (asignación manual), cuenta de FakeYou y gestión de datos
+// locales. Persistencia en localStorage con tolerancia a datos corruptos.
 
 'use client'
 
-import { Eye, RotateCcw, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Eye, RotateCcw, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -20,12 +21,85 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { usePersonajesStore } from '@/store/personajes'
 import { useVozStore } from '@/store/voz'
+import { TarjetaAtajos } from '@/components/voz/tarjeta-atajos'
+
+// Cuenta de FakeYou (mudanza desde la antigua pestaña Personajes): el token
+// de sesión sube el cupo de generación del elenco. Vive aquí por ser un
+// ajuste, no un flujo de lectura.
+function TarjetaCuentaFakeYou() {
+  const init = usePersonajesStore((s) => s.init)
+  const sesion = usePersonajesStore((s) => s.sesionFakeyou)
+  const setSesion = usePersonajesStore((s) => s.setSesion)
+  const [valor, setValor] = useState('')
+
+  useEffect(() => {
+    init()
+  }, [init])
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+          <Star className="size-4 text-primary" aria-hidden="true" />
+          Cuenta de FakeYou
+          <Badge variant="secondary" className="border border-border/50 bg-secondary/60 font-mono">
+            {sesion ? 'Conectada' : 'Anónima'}
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          Las voces de personajes usan FakeYou. Con una cuenta gratuita el cupo es mayor: inicia
+          sesión en fakeyou.com, copia el valor de la cookie{' '}
+          <code className="rounded bg-muted px-1">session</code> (DevTools ▸ Application ▸ Cookies) y
+          pégalo aquí.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {sesion ? (
+          <div className="flex items-center justify-between gap-2 rounded-md border p-2.5">
+            <span className="flex min-w-0 items-center gap-2">
+              <Star className="size-4 shrink-0 fill-amber-400 text-amber-400" aria-hidden="true" />
+              <span className="truncate font-mono text-xs">{sesion.slice(0, 14)}…</span>
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSesion(null)
+                setValor('')
+              }}
+            >
+              Desconectar
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              placeholder="Pega aquí el token de sesión"
+              type="password"
+              aria-label="Token de sesión de FakeYou"
+            />
+            <Button size="sm" disabled={!valor.trim()} onClick={() => setSesion(valor)}>
+              Guardar
+            </Button>
+          </div>
+        )}
+        <p className="text-[11px] text-muted-foreground">
+          El token se guarda solo en este navegador y viaja únicamente al backend de esta app.
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function PestanaAjustes() {
   const ajustes = useVozStore((s) => s.ajustes)
@@ -36,13 +110,11 @@ export function PestanaAjustes() {
   const setSrObjetivo = useVozStore((s) => s.setSrObjetivo)
   const setMonitor = useVozStore((s) => s.setMonitor)
   const setVolumenMonitor = useVozStore((s) => s.setVolumenMonitor)
-  const setAtajos = useVozStore((s) => s.setAtajos)
   const actualizarDispositivos = useVozStore((s) => s.actualizarDispositivos)
   const restaurarVoz = useVozStore((s) => s.restaurarVoz)
   const restaurarVocesOcultas = useVozStore((s) => s.restaurarVocesOcultas)
   const restablecerDatos = useVozStore((s) => s.restablecerDatos)
 
-  const conAtajo = voces.filter((v) => v.atajo)
   const personales = voces.filter((v) => v.personalizada)
 
   return (
@@ -56,8 +128,8 @@ export function PestanaAjustes() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="dispositivo">Micrófono de entrada</Label>
               <div className="flex gap-2">
                 <Select
@@ -94,13 +166,13 @@ export function PestanaAjustes() {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="sr">Frecuencia de muestreo objetivo</Label>
               <Select
                 value={String(ajustes.srObjetivo)}
                 onValueChange={(v) => setSrObjetivo(Number(v))}
               >
-                <SelectTrigger id="sr">
+                <SelectTrigger id="sr" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -146,36 +218,9 @@ export function PestanaAjustes() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Atajos de teclado</CardTitle>
-          <CardDescription>
-            Espejo del mapa del escritorio: la asignación vive en el dato de cada voz.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="atajos-activos">Activar atajos F1–F12</Label>
-              <p className="text-xs text-muted-foreground">
-                Se ignoran mientras escribes en un campo de texto.
-              </p>
-            </div>
-            <Switch id="atajos-activos" checked={ajustes.atajos} onCheckedChange={setAtajos} />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {conAtajo.map((v) => (
-              <Badge key={`${v.id}-${v.atajo}`} variant="outline" className="gap-1 font-normal">
-                <span className="font-mono">{v.atajo}</span>
-                {v.nombre}
-              </Badge>
-            ))}
-            {conAtajo.length === 0 && (
-              <span className="text-sm text-muted-foreground">Ninguna voz tiene atajo asignado.</span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <TarjetaAtajos />
+
+      <TarjetaCuentaFakeYou />
 
       {vocesOcultas.length > 0 && (
         <Card>
@@ -274,27 +319,6 @@ export function PestanaAjustes() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Sobre esta versión</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            Versión web del cambiador de voz para DM de D&D: espejo funcional de la app de escritorio
-            (rama <span className="font-mono text-xs">main</span> · voz_dnd) mantenida en la rama{' '}
-            <span className="font-mono text-xs">feat/web-app</span>. Todo cambio se refleja en ambas ramas.
-          </p>
-          <p>
-            Diferencias honestas: la grabación se descarga en formato del navegador (WebM/Opus, MP4 en
-            Safari) en vez de MP3; el modo IA (RVC) no está disponible en web y la voz IA Demo degrada a
-            su cadena DSP post, igual que el escritorio sin GPU; la síntesis usa el servicio del servidor
-            con respaldo en la voz del navegador. Gestión de voces: el escritorio elimina la voz de
-            data/voces/ (permanente, desde el Editor); la web, al no poder tocar el catálogo generado,
-            quita la voz de tu lista y la puedes restaurar aquí en cualquier momento.
-          </p>
         </CardContent>
       </Card>
     </div>
