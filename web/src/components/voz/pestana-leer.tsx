@@ -67,6 +67,7 @@ import type { ParametrosDSP } from '@/lib/tipos'
 import { usePersonajesStore, type VozPersonaje } from '@/store/personajes'
 import { useVozStore } from '@/store/voz'
 import { TarjetaColaEscenas } from '@/components/voz/tarjeta-cola-escenas'
+import { TarjetaNotasSesion } from '@/components/voz/tarjeta-notas-sesion'
 
 const MAX_TEXTO_FAKEYOU = 500
 
@@ -739,6 +740,8 @@ export function PestanaLeer() {
           motorNavegador={motorTts === 'navegador'}
         />
       )}
+
+      <TarjetaNotasSesion />
 
       {historial.length > 0 && (
         <Card>

@@ -208,3 +208,22 @@ voz elegida y su cadena DSP.
   deshabilitada (no renderiza WAV).
 - Botón «Enviar el texto a leer» manda el texto del cuadro principal como
   nueva escena. Máximo 30 escenas.
+## Notas de sesión (Leer) — dictado con ASR estilo Dictation Widget
+
+Petición explícita del usuario (idea de VoiceStudio): card «Notas de
+sesión» en Leer (tras la Cola de escenas, SIEMPRE visible, también con
+FakeYou). Graba con MediaRecorder INDEPENDIENTE del motor DSP (el
+cambiador de voz sigue vivo mientras dictas), transcribe en el servidor y
+guarda la nota con fecha.
+
+- Ruta: `POST /api/notas/transcribir` ({ file_base64 } → { ok, texto }).
+  El navegador envía el webm/opus de MediaRecorder TAL CUAL (verificado:
+  el ASR lo acepta igual que WAV).
+- Persistencia: `voz_dnd_web.notas_sesion`, máx 100 notas, lectura
+  tolerante. Copiar/Borrar/Vaciar por nota.
+- Corte de seguridad a los 5 minutos; la grabadora se limpia al desmontar
+  la pestaña (sin tracks zombis).
+- Aviso honesto en la UI: la transcripción automática puede contener
+  errores (calidad medida con TTS→ASR: aceptable, no perfecta). Si el ASR
+  no reconoce voz → error claro y la grabación se descarta (no guardamos
+  audio en localStorage).
