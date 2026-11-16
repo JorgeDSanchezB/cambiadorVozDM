@@ -190,9 +190,10 @@ personalizada (con icono/color del LLM) y la deja como voz activa.
 ## Cola de escenas (Leer) — narración por lotes estilo Batch Queue
 
 Petición explícita del usuario (idea de VoiceStudio): card «Cola de escenas»
-en Leer, DEBAJO de «Síntesis de voz» y SOLO cuando no hay voz FakeYou
-elegida. Varios textos → un WAV por escena (archivo por capítulo), con la
-voz elegida y su cadena DSP.
+en Leer, DEBAJO de «Síntesis de voz» y SIEMPRE VISIBLE. Varios textos →
+un WAV por escena (archivo por capítulo), con la voz elegida y su cadena
+DSP. (fix: antes se ocultaba con `!esFakeYou` y el aviso integrado era
+código muerto; hoy la tarjeta decide sola qué mostrar.)
 
 - Persistencia: `voz_dnd_web.cola_escenas` en localStorage, lectura
   tolerante a datos corruptos (como el resto de datos); estados de render
