@@ -71,3 +71,8 @@ server.log
 # Salidas de la pestaña "Leer" (WAV generados; no van a git)
 /voz_dnd/data/lectura/
 /voz_dnd/data/clonacion/
+
+# Instalador de Windows (binario grande; se distribuye aparte, NO a git)
+/download/DMVoiceChanger.exe
+/voz_dnd/packaging-windows/_build/
+/voz_dnd/packaging-windows/wheels/
