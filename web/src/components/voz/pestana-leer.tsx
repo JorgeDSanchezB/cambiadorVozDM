@@ -731,15 +731,15 @@ export function PestanaLeer() {
         </CardContent>
       </Card>
 
-      {!esFakeYou && (
-        <TarjetaColaEscenas
-          textoActual={texto}
-          elegida={elegida}
-          velocidad={velocidad}
-          esFakeYou={esFakeYou}
-          motorNavegador={motorTts === 'navegador'}
-        />
-      )}
+      {/* Siempre visible: la propia tarjeta explica sus límites
+          (FakeYou/navegador no pueden renderizar WAV por escena). */}
+      <TarjetaColaEscenas
+        textoActual={texto}
+        elegida={elegida}
+        velocidad={velocidad}
+        esFakeYou={esFakeYou}
+        motorNavegador={motorTts === 'navegador'}
+      />
 
       <TarjetaNotasSesion />
 
