@@ -19,6 +19,9 @@ RAIZ_REPO="$(cd "${AQUI}/../.." && pwd)"
 PYTHON_VER="3.14.10"
 
 mkdir -p "${TRABAJO}" "${PAYLOAD}/runtime/Lib/site-packages" "${PAYLOAD}/app" wheels
+# Payload limpio en cada build: rsync sin --delete conservaría restos de
+# builds anteriores (p. ej. wheels sueltos en site-packages).
+rm -rf "${PAYLOAD}"
 cd "${TRABAJO}"
 
 echo "[1/7] Descargando Python ${PYTHON_VER} embebido (amd64)..."
@@ -39,6 +42,9 @@ python3 -m zipfile -e python314-embed.zip "${PAYLOAD}/runtime/"
 for w in wheels/*.whl; do
   python3 -m zipfile -e "$w" "${PAYLOAD}/runtime/Lib/site-packages/"
 done
+# Algunos wheels upstream dejan entradas *.whl fantasma (p. ej. scipy 1.18.1
+# lleva un .whl de 0 bytes dentro); sobran en site-packages.
+rm -f "${PAYLOAD}/runtime/Lib/site-packages/"*.whl
 
 echo "[4/7] Configurando python314._pth..."
 printf 'python314.zip\n.\nLib/site-packages\nimport site\n' \
@@ -65,6 +71,7 @@ BAT
 
 echo "[7/7] Compilando instalador NSIS..."
 cp "${AQUI}/instalador.nsi" "${TRABAJO}/"
+cp "${AQUI}/DMVoiceChanger.ico" "${TRABAJO}/"
 cd "${TRABAJO}"
 export NSISDIR="${NSISDIR:-/home/z/nsis/NSIS}"
 makensis instalador.nsi
