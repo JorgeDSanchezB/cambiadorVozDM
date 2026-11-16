@@ -59,6 +59,13 @@ servidor» + «Aplicar la voz activa»). Rediseño aprobado:
   SOLO con su nombre de voz — sin @creador ni descripciones, petición
   explícita del usuario). Una línea dinámica bajo el control dice qué se
   escuchará.
+- **Card «Favoritos»** (debajo de «Texto a leer», petición explícita del
+  usuario): chips de las voces marcadas con estrella (`favoritas` del store
+  `personajes`, resueltas contra el catálogo). Al pulsar un chip se usa la
+  MISMA ruta de selección (`elegir('fy:<token>')`), o sea que «¿Quién lee?»
+  queda elegido automáticamente. Estados: carga, catálogo caído con
+  reintento y vacío honesto («Aún no tienes favoritas»). No sustituye al
+  grupo «★ Favoritas» del combobox.
 - **Pipeline en una frase**: la voz neural del servidor genera el audio
   base y la cadena DSP del personaje se aplica UNA sola vez sobre él.
 - **La voz base del servidor** es una sola (tongtong) y NO se expone en la
