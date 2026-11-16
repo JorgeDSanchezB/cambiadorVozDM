@@ -187,3 +187,24 @@ personalizada (con icono/color del LLM) y la deja como voz activa.
 - La card vive en `tarjeta-forja-descripcion.tsx`; el editor de sliders
   queda debajo intacto. No mover la card ni volver a un solo paso sin
   guardar.
+## Cola de escenas (Leer) — narración por lotes estilo Batch Queue
+
+Petición explícita del usuario (idea de VoiceStudio): card «Cola de escenas»
+en Leer, DEBAJO de «Síntesis de voz» y SOLO cuando no hay voz FakeYou
+elegida. Varios textos → un WAV por escena (archivo por capítulo), con la
+voz elegida y su cadena DSP.
+
+- Persistencia: `voz_dnd_web.cola_escenas` en localStorage, lectura
+  tolerante a datos corruptos (como el resto de datos); estados de render
+  NO persisten (vuelven a «En la cola» al recargar).
+- Corazón técnico: `renderizarLecturaAWav()` en `lib/tts.ts` (refactor:
+  `descargarWavLectura` ahora delega en ella y se comporta IGUAL que
+  antes). La cola la llama escena a escena con nombre de archivo propio
+  (`escena_<n>_<titulo>_<marca>`) y ~900 ms entre descargas (los
+  navegadores bloquean ráfagas de descargas múltiples).
+- Mantener SIEMPRE: render secuencial de fragmentos (fix 005, nunca
+  superponer) y aborto limpio con AbortController propio de la cola.
+- Con FakeYou o motor «navegador» la card se muestra con mensaje honesto y
+  deshabilitada (no renderiza WAV).
+- Botón «Enviar el texto a leer» manda el texto del cuadro principal como
+  nueva escena. Máximo 30 escenas.

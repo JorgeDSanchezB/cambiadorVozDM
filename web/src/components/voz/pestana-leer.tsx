@@ -66,6 +66,7 @@ import {
 import type { ParametrosDSP } from '@/lib/tipos'
 import { usePersonajesStore, type VozPersonaje } from '@/store/personajes'
 import { useVozStore } from '@/store/voz'
+import { TarjetaColaEscenas } from '@/components/voz/tarjeta-cola-escenas'
 
 const MAX_TEXTO_FAKEYOU = 500
 
@@ -86,7 +87,7 @@ function fechaCorta(iso: string): string {
   return d.toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-type ElegidaLectura =
+export type ElegidaLectura =
   | { tipo: 'servidor'; nombre: string; parametros?: ParametrosDSP }
   | { tipo: 'fakeyou'; voz: VozPersonaje }
 
@@ -728,6 +729,16 @@ export function PestanaLeer() {
           )}
         </CardContent>
       </Card>
+
+      {!esFakeYou && (
+        <TarjetaColaEscenas
+          textoActual={texto}
+          elegida={elegida}
+          velocidad={velocidad}
+          esFakeYou={esFakeYou}
+          motorNavegador={motorTts === 'navegador'}
+        />
+      )}
 
       {historial.length > 0 && (
         <Card>

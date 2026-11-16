@@ -228,17 +228,19 @@ export function detenerLecturaNavegador(): void {
   if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel()
 }
 
-// Descarga el WAV de la lectura (espejo del "guardar WAV" del escritorio):
-// render offline con la cadena del personaje si se pidió, o el audio
-// neural tal cual si no.
-export async function descargarWavLectura(opciones: OpcionesLectura): Promise<void> {
+// Renderiza la lectura completa a un WAV (blob) SIN descargarlo: síntesis
+// por fragmentos del servidor + concatenación secuencial (espejo del fix
+// 005: nunca superponer) + cadena DSP del personaje si se pidió. Lo usa el
+// botón «Descargar WAV» y la cola de escenas (batch inspirado en la
+// Batch Queue de VoiceStudio).
+export async function renderizarLecturaAWav(opciones: OpcionesLectura): Promise<Blob> {
   const fragmentos = fragmentarTexto(opciones.texto)
-  if (fragmentos.length === 0) return
+  if (fragmentos.length === 0) throw new Error('El texto está vacío')
   const ctx = await motor.ensureContexto()
 
   const buffers: AudioBuffer[] = []
   for (let i = 0; i < fragmentos.length; i++) {
-    if (opciones.senal?.aborted) return
+    if (opciones.senal?.aborted) throw new Error('cancelado')
     opciones.onProgreso?.({ fase: 'sintetizando', fragmento: i + 1, total: fragmentos.length })
     const datos = await sintetizarFragmento(fragmentos[i], VOZ_SERVIDOR_POR_DEFECTO, opciones.velocidad, opciones.senal)
     buffers.push(await ctx.decodeAudioData(datos))
@@ -260,9 +262,16 @@ export async function descargarWavLectura(opciones: OpcionesLectura): Promise<vo
   const renderizado = opciones.parametros
     ? await motor.renderizarOffline(combinado, opciones.parametros)
     : combinado
-  const blob = audioBufferAWav(renderizado)
-  descargarBlob(blob, `lectura_${marcaDeTiempo()}.wav`)
   opciones.onProgreso?.({ fase: 'fin', fragmento: fragmentos.length, total: fragmentos.length })
+  return audioBufferAWav(renderizado)
+}
+
+// Descarga el WAV de la lectura (espejo del "guardar WAV" del escritorio):
+// render offline con la cadena del personaje si se pidió, o el audio
+// neural tal cual si no.
+export async function descargarWavLectura(opciones: OpcionesLectura): Promise<void> {
+  const blob = await renderizarLecturaAWav(opciones)
+  descargarBlob(blob, `lectura_${marcaDeTiempo()}.wav`)
 }
 
 // "Probar voz" de las tarjetas: frase corta por la cadena con los parámetros
