@@ -66,6 +66,7 @@ echo "[5/7] Copiando el código de voz_dnd..."
 rsync -a --exclude='__pycache__' --exclude='*.pyc' --exclude='logs' \
   --exclude='tests' --exclude='.venv' \
   --exclude='_build' --exclude='wheels' \
+  --exclude='packaging-windows' \
   "${AQUI}/../" "${PAYLOAD}/app/"
 rm -f "${PAYLOAD}/app/iniciar_voz_dnd.bat"
 
@@ -112,6 +113,22 @@ except BaseException:
     raise
 PY
 cp "${AQUI}/DMVoiceChanger.ico" "${PAYLOAD}/DMVoiceChanger.ico"
+
+# La carpeta logs se precrea con un LEEME: el usuario siempre sabe dónde
+# mirar si la app no abre, y sabemos que la instalación llegó entera.
+mkdir -p "${PAYLOAD}/app/logs"
+cat > "${PAYLOAD}/app/logs/LEEME.txt" <<'LEE'
+Si DMVoiceChanger no abre:
+  1. Usa el acceso directo «DMVoiceChanger» (Escritorio o Menú Inicio).
+  2. Si sigue sin abrirse, ejecuta DMVoiceChanger-Depuracion.bat
+     (está en la carpeta de instalación, junto a runtime) y verás
+     el error en una consola que permanece abierta.
+  3. Ese mismo error queda registrado aquí, en arranque.log
+     (una línea «=== fecha ===» por cada intento de arranque).
+
+Al reportar el problema, pega el contenido de arranque.log o de la consola.
+LEE
+
 cat > "${PAYLOAD}/DMVoiceChanger-Depuracion.bat" <<'BAT'
 @echo off
 REM DMVoiceChanger - modo depuracion: consola visible + registro de fallos
@@ -121,6 +138,17 @@ echo.
 echo Codigo de salida: %ERRORLEVEL%
 pause
 BAT
+
+echo "    Verificando archivos clave del payload..."
+test -f "${PAYLOAD}/runtime/pythonw.exe"    || { echo "FALTA runtime\\pythonw.exe"; exit 1; }
+test -f "${PAYLOAD}/runtime/python.exe"     || { echo "FALTA runtime\\python.exe"; exit 1; }
+test -f "${PAYLOAD}/runtime/lanzar_app.py"  || { echo "FALTA runtime\\lanzar_app.py"; exit 1; }
+test -f "${PAYLOAD}/runtime/python314._pth" || { echo "FALTA runtime\\python314._pth"; exit 1; }
+test -f "${PAYLOAD}/app/main.py"            || { echo "FALTA app\\main.py"; exit 1; }
+test -f "${PAYLOAD}/app/app/__init__.py"    || { echo "FALTA app\\app\\__init__.py"; exit 1; }
+test -f "${PAYLOAD}/app/logs/LEEME.txt"     || { echo "FALTA app\\logs\\LEEME.txt"; exit 1; }
+test -d "${PAYLOAD}/runtime/Lib/site-packages/PyQt6" || { echo "FALTA PyQt6 en site-packages"; exit 1; }
+test -d "${PAYLOAD}/runtime/Lib/site-packages/pip"   || { echo "FALTA pip en site-packages"; exit 1; }
 
 echo "[7/7] Compilando instalador NSIS..."
 cp "${AQUI}/instalador.nsi" "${TRABAJO}/"

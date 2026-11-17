@@ -10,8 +10,8 @@ Unicode true
 
 !define PRODUCTO       "DMVoiceChanger"
 !define PRODUCTO_LARGO "DMVoiceChanger - Cambiador de voz para DM de D&D"
-!define VERSION        "1.1.1"
-!define VI_VERSION     "1.1.1.0"
+!define VERSION        "1.1.2"
+!define VI_VERSION     "1.1.2.0"
 !define EDITOR         "La Forja del DJ"
 !define URL_AYUDA      "https://github.com/JorgeDSanchezB/cambiadorVozDM"
 !define CLAVE_DESINST  "Software\Microsoft\Windows\CurrentVersion\Uninstall\DMVoiceChanger"
@@ -37,7 +37,7 @@ VIAddVersionKey /LANG=1034 "ProductVersion" "${VI_VERSION}"
 !define MUI_ABORTWARNING
 
 !define MUI_WELCOMEPAGE_TITLE "Bienvenido al instalador de ${PRODUCTO}"
-!define MUI_WELCOMEPAGE_TEXT "Este asistente instalará ${PRODUCTO} en tu equipo.$\r$\n$\r$\nIncluye TODO lo necesario: no requiere Python, ni permisos de administrador, ni configuración.$\r$\n$\r$\nSi la app no abriera nunca, ejecuta ${PRODUCTO}-Depuracion.bat: el error quedará registrado en app\logs\arranque.log.$\r$\n$\r$\n$_CLICK"
+!define MUI_WELCOMEPAGE_TEXT "Este asistente instalará ${PRODUCTO} en tu equipo.$\r$\n$\r$\nIncluye TODO lo necesario: no requiere Python, ni permisos de administrador, ni configuración.$\r$\n$\r$\nSi la app no abriera nunca, ejecuta ${PRODUCTO}-Depuracion.bat (o mira app\logs\arranque.log; la carpeta logs se crea junto al LEEME.txt).$\r$\n$\r$\n$_CLICK"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -72,19 +72,24 @@ Section "Instalar" SecInstalar
 
   DetailPrint "Creando accesos directos..."
   CreateDirectory "$SMPROGRAMS\${PRODUCTO}"
+  ; IMPORTANTE (lección de la v1.1.1): el script del lanzador se pasa con
+  ; RUTA ABSOLUTA y el «Iniciar en» del atajo apunta a runtime\. Con la
+  ; combinación anterior (parámetro relativo "lanzar_app.py" + iniciar en
+  ; app\) Windows buscaba app\lanzar_app.py, no existía, y pythonw moría
+  ; en silencio sin crear ningún registro.
   CreateShortCut "$SMPROGRAMS\${PRODUCTO}\${PRODUCTO}.lnk" \
-                 "$INSTDIR\runtime\pythonw.exe" "lanzar_app.py" \
+                 "$INSTDIR\runtime\pythonw.exe" '"$INSTDIR\runtime\lanzar_app.py"' \
                  "$INSTDIR\DMVoiceChanger.ico" 0 SW_SHOWNORMAL "" \
-                 "Cambiador de voz en tiempo real para DM de D&D" "$INSTDIR\app"
+                 "Cambiador de voz en tiempo real para DM de D&D" "$INSTDIR\runtime"
   CreateShortCut "$SMPROGRAMS\${PRODUCTO}\Modo depuración.lnk" \
                  "$INSTDIR\DMVoiceChanger-Depuracion.bat" "" \
                  "$INSTDIR\DMVoiceChanger.ico" 0
   CreateShortCut "$SMPROGRAMS\${PRODUCTO}\Desinstalar.lnk" \
                  "$INSTDIR\uninstall.exe" "" "$INSTDIR\DMVoiceChanger.ico" 0
   CreateShortCut "$DESKTOP\${PRODUCTO}.lnk" \
-                 "$INSTDIR\runtime\pythonw.exe" "lanzar_app.py" \
+                 "$INSTDIR\runtime\pythonw.exe" '"$INSTDIR\runtime\lanzar_app.py"' \
                  "$INSTDIR\DMVoiceChanger.ico" 0 SW_SHOWNORMAL "" \
-                 "Cambiador de voz en tiempo real para DM de D&D" "$INSTDIR\app"
+                 "Cambiador de voz en tiempo real para DM de D&D" "$INSTDIR\runtime"
 
   DetailPrint "Registrando la desinstalación..."
   WriteRegStr HKCU "Software\${PRODUCTO}" "InstallDir" "$INSTDIR"
@@ -103,8 +108,10 @@ Section "Instalar" SecInstalar
 SectionEnd
 
 Function LanzarApp
-  SetOutPath "$INSTDIR\app"
-  Exec '"$INSTDIR\runtime\pythonw.exe" lanzar_app.py'
+  ; Ruta absoluta al lanzador: con SetOutPath app\ + parámetro relativo
+  ; (v1.1.1) Exec resolvía app\lanzar_app.py → no existía → silencio total.
+  SetOutPath "$INSTDIR\runtime"
+  Exec '"$INSTDIR\runtime\pythonw.exe" "$INSTDIR\runtime\lanzar_app.py"'
 FunctionEnd
 
 ; ---------- Desinstalación ----------

@@ -6,7 +6,7 @@ administrador en el equipo destino.
 
 ## Qué produce
 
-`download/DMVoiceChanger.exe` — instalador NSIS (v1.1.1, ~101 MB) con:
+`download/DMVoiceChanger.exe` — instalador NSIS (v1.1.2, ~101 MB) con:
 
 - **Runtime Python 3.14 embebido** (no toca el Python del sistema, no hay
   venv).
@@ -27,21 +27,37 @@ administrador en el equipo destino.
   `DMVoiceChanger-Depuracion.bat` para ver la consola de errores.
 - **Desinstalador** real, registrado en «Aplicaciones instaladas» (HKCU).
 
-## Arreglo de arranque (v1.1.1): «doble clic y nada pasa»
+## Arreglo de arranque (v1.1.1 + v1.1.2): «doble clic y nada pasa»
 
-El `python314._pth` del runtime embebido activa el **modo aislado** de
-Python: la carpeta del script NO se añade a `sys.path`. Con el atajo
-original (`pythonw.exe main.py`) el `import app` de `main.py` moría con
-`ModuleNotFoundError` y pythonw no muestra consola → el usuario solo ve
-«nada pasa». Tres capas de protección:
+Había DOS fallos en cadena, ambos silenciosos porque `pythonw` no tiene
+consola:
+
+1. **v1.1.0** — el `python314._pth` del runtime embebido activa el
+   **modo aislado**: la carpeta del script NO se añade a `sys.path`. Con el
+   atajo original (`pythonw.exe main.py`) el `import app` de `main.py`
+   moría con `ModuleNotFoundError` y el usuario solo ve «nada pasa».
+2. **v1.1.1** — el primer arreglo introdujo otro fallo: los atajos pasaban
+   el parámetro RELATIVO `lanzar_app.py` con «Iniciar en: app\», así que
+   Windows buscaba `app\lanzar_app.py` (no existe; el lanzador está en
+   `runtime\`) y pythonw moría ANTES de crear `arranque.log` → de nuevo
+   «nada pasa» y ni rastro del log.
+
+Capas de protección actuales (v1.1.2):
 
 1. El `._pth` incluye `..\app` (relativa al propio `._pth` → `INSTDIR\app`).
-2. Los atajos y la página final ejecutan `runtime\lanzar_app.py`: un
-   lanzador que hace chdir a `app\`, fuerza `sys.path`, ejecuta
-   `main.py` vía `runpy` y registra CUALQUIER fallo (traceback y crashes
-   duros vía faulthandler) en `app\logs\arranque.log`.
+2. Los atajos y la página final ejecutan el lanzador con **RUTA ABSOLUTA**
+   (`"$INSTDIR\runtime\lanzar_app.py"`) y «Iniciar en: runtime\»: un
+   lanzador que hace chdir a `app\`, fuerza `sys.path`, ejecuta `main.py`
+   vía `runpy` y registra CUALQUIER fallo (traceback y crashes duros vía
+   faulthandler) en `app\logs\arranque.log`.
 3. `DMVoiceChanger-Depuracion.bat` lanza el mismo lanzador con consola
-   (`python.exe`) y muestra el código de salida.
+   (`python.exe`), muestra el código de salida y hace `pause`.
+4. La carpeta `app\logs\` **se instala con un `LEEME.txt`** dentro: si
+   algún día fallara algo ANTES de python, el usuario siempre encuentra
+   dónde iría el registro.
+5. El script de construcción verifica con `test` los archivos clave del
+   payload (pythonw.exe, lanzar_app.py, app\main.py, PyQt6, pip, LEEME…)
+   antes de invocar makensis.
 
 Verificado en Linux con una réplica de la estructura instalada: import OK,
 salida limpia registrada y traceback completo en `arranque.log` cuando el
@@ -92,14 +108,15 @@ fallo es de import.
 ├── DMVoiceChanger.ico
 ├── DMVoiceChanger-Depuracion.bat      (consola visible para depurar)
 ├── uninstall.exe
-├── runtime\                            (Python 3.14 embebido + site-packages)
-└── app\                                (voz_dnd: main.py, app/, data/)
+├── runtime\                            (Python 3.14 embebido + site-packages + lanzar_app.py)
+└── app\                                (voz_dnd: main.py, app/, data/, logs/LEEME.txt)
 ```
 
-El lanzamiento es `runtime\pythonw.exe main.py` con directorio de trabajo
-`app\` — las rutas canónicas de `app/rutas.py` siguen resolviendo igual que
-en desarrollo (`BASE_DIR = app\`, `data` junto al código, `logs` y `lectura`
-se crean al vuelo).
+El lanzamiento (v1.1.2) es `runtime\pythonw.exe "...\runtime\lanzar_app.py"`
+con «Iniciar en» `runtime\`; el lanzador cambia el directorio de trabajo a
+`app\` y ejecuta `main.py` — las rutas canónicas de `app/rutas.py` siguen
+resolviendo igual que en desarrollo (`BASE_DIR = app\`, `data` junto al
+código, `logs` y `lectura` se crean al vuelo).
 
 ## Verificación pendiente del usuario (Windows real)
 
