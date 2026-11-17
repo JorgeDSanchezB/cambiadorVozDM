@@ -9,18 +9,24 @@ grabación) y la de mejor aspecto.
 
 ## Qué produce
 
-`download/DMVoiceChangerWeb.exe` — instalador NSIS (v1.0.1, ~54 MB comprimido,
-~257 MB instalado) con:
+`download/DMVoiceChangerWeb-1.0.2.exe` — instalador NSIS (v1.0.2, ~140 MB
+comprimido, ~500 MB instalado) con:
 
+- **Shell Electron 33** (`electron\DMVoiceChangerWeb.exe`): ventana de
+  aplicación PROPIA — sin navegador, sin pestañas, sin barra de direcciones,
+  con icono propio, pantalla de carga y cierre que apaga el servidor.
 - **Node.js 22.14 portable** (`runtime\node.exe`) — no instala nada en el sistema.
 - **La app web compilada en modo standalone** (Next.js 16, `server.js` +
   `.next` + dependencias trazadas), con los **engines de Prisma para Windows**.
 - **Plantilla SQLite** (`app\plantilla.db`): en el primer arranque se copia a
   `%LOCALAPPDATA%\DMVoiceWeb\voces.db` (fuera de la instalación → sobrevive a
   actualizaciones y desinstalaciones).
-- Lanzadores: `arrancar.vbs` (servidor oculto + abre el navegador),
-  `detener.vbs`/`detener.ps1` (cierra SOLO nuestro node, por línea de comando),
-  `DMVoiceWeb-Depuracion.bat` (consola visible con pausa).
+- Lanzadores SIN scripts `.vbs` (Kaspersky/Defender los eliminaban al
+  extraerlos — causa de las dos primeras versiones «roto»): el atajo apunta
+  al exe de Electron; `detener.ps1` (cierra SOLO nuestros procesos) y
+  `DMVoiceWeb-Depuracion.bat` (consola visible con pausa) siguen ahí.
+  El instalador AUTOCOMPRUEBA al terminar (node.exe, electron, shell, server.js)
+  y avisa en vivo si el antivirus borró algo.
 - Instalación **por usuario** (`%LOCALAPPDATA%\Programs\DMVoiceChangerWeb`),
   sin UAC, con desinstalador registrado.
 
@@ -88,10 +94,12 @@ ver README de `voz_dnd/packaging-windows/`). El script:
 ```
 %LOCALAPPDATA%\Programs\DMVoiceChangerWeb\
 ├── DMVoiceChanger.ico
-├── arrancar.vbs / detener.vbs / detener.ps1
-├── DMVoiceWeb-Depuracion.bat
+├── LEEME.txt
+├── detener.ps1 / DMVoiceWeb-Depuracion.bat
 ├── uninstall.exe
-├── runtime\node.exe          (Node 22.14 portable)
+├── runtime\node.exe          (Node 22.14 portable, servidor)
+├── electron\                 (shell de escritorio; DMVoiceChangerWeb.exe)
+├── shell\                    (main.js + cargando/error, package.json)
 └── app\                      (server.js + .next + node_modules + plantilla.db + arranque.cjs)
 ```
 
@@ -109,6 +117,28 @@ ver README de `voz_dnd/packaging-windows/`). El script:
 - **Prisma**: `binaryTargets = ["native", "windows"]` en el generator y
   verificar tras el build que `query_engine-windows.dll.node` está dentro del
   standalone (Next lo traza bien, pero se comprueba por si acaso).
+
+## Cambios v1.0.2 (2026-11-17) — ELECTRON
+
+- **Adiós al navegador**: shell Electron 33.4.11. Ventana propia (1280x820,
+  fondo #1e150f sin flash blanco, icono del producto, sin barra de menús),
+  una sola instancia (relanzar enfoca la ventana), enlaces externos se abren
+  en el navegador del sistema, el resto de navegación queda dentro.
+- **El antivirus ya no puede romper el arranque**: se ELIMINARON los `.vbs`
+  (arrancar.vbs/detener.vbs) — Kaspersky los borraba al extraerlos y por eso
+  v1.0.0 y v1.0.1 «no tenían arrancar.vbs» aunque el instalador los llevaba.
+  Ahora el atajo → `electron\DMVoiceChangerWeb.exe` → spawn de
+  `runtime\node.exe app\arranque.cjs` (servidor, DB, error.log) → ventana.
+- **Ciclo de vida de app real**: cerrar la ventana apaga el servidor; si el
+  servidor muere, la ventana muestra «La forja no encendió» con el camino de
+  depuración (DMVoiceWeb-Depuracion.bat / %LOCALAPPDATA%\DMVoiceWeb\error.log).
+- **Favicon local**: la web ya no depende del CDN para su icono
+  (`web/src/app/favicon.ico` = icono del producto) — la ventana y la barra
+  de tareas lucen el icono correcto incluso sin red.
+- exe versionado (`DMVoiceChangerWeb-1.0.2.exe`) para que NUNCA se vuelva a
+  instalar un instalador viejo por confusión de nombre.
+- payload: `rsync -aL` (sin symlinks de bun), autocomprobación del instalador,
+  verificación del contenido real por log de makensis (-V4, conteo exacto).
 
 ## Cambios v1.0.1 (2026-11-17)
 

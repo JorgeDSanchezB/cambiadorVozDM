@@ -24,6 +24,7 @@ TRABAJO="${AQUI}/_build"
 APP_SRC="${TRABAJO}/app-src"
 PAYLOAD="${TRABAJO}/payload"
 NODE_VER="22.14.0"
+ELECTRON_VER="33.4.11"
 PUERTO="3987"
 NSISDIR="${NSISDIR:-/home/z/nsis/NSIS}"
 ICO="${RAIZ_REPO}/voz_dnd/packaging-windows/DMVoiceChanger.ico"
@@ -79,7 +80,7 @@ find "${APP_SRC}/.next/standalone" -name 'libquery_engine-*' | grep -q . \
   || { echo "FALTA el engine nativo de Prisma"; exit 1; }
 echo "    Engines Prisma presentes (windows + nativo)."
 
-echo "[5/8] Descargando Node.js ${NODE_VER} (win-x64 para el exe, linux-x64 para el smoke test)..."
+echo "[5/8] Descargando Node.js ${NODE_VER} y Electron ${ELECTRON_VER} (win-x64)..."
 cd "${TRABAJO}"
 if [ ! -f node-win.zip ]; then
   curl -fsSL -o node-win.zip \
@@ -97,6 +98,15 @@ if [ ! -d node-linux ]; then
   mkdir -p node-linux && tar -xJf node-linux.tar.xz -C node-linux --strip-components=1
 fi
 test -x node-linux/bin/node
+if [ ! -f electron-win.zip ]; then
+  curl -fsSL -o electron-win.zip \
+    "https://github.com/electron/electron/releases/download/v${ELECTRON_VER}/electron-v${ELECTRON_VER}-win32-x64.zip"
+fi
+if [ ! -d electron-win ]; then
+  python3 -m zipfile -e electron-win.zip electron-win/
+fi
+test -f "electron-win/electron.exe" \
+  || { echo "FALTA electron.exe en el zip de Electron"; exit 1; }
 
 echo "[6/8] Ensamblando el payload del instalador..."
 # -L (desreferenciar): el standalone trae symlinks de bun (p. ej.
@@ -107,12 +117,17 @@ echo "[6/8] Ensamblando el payload del instalador..."
 rsync -aL "${APP_SRC}/.next/standalone/" "${PAYLOAD}/app/"
 cp "${TRABAJO}/plantilla/plantilla.db" "${PAYLOAD}/app/plantilla.db"
 cp "${ICO}" "${PAYLOAD}/DMVoiceChanger.ico"
+# Shell Electron: dist completo renombrado como ejecutable del producto
+rsync -a --delete "electron-win/" "${PAYLOAD}/electron/"
+mv "${PAYLOAD}/electron/electron.exe" "${PAYLOAD}/electron/DMVoiceChangerWeb.exe"
 
-# ---- arranque.cjs: fija entorno (puerto, DB por usuario) y lanza server.js ----
+# ---- arranque.cjs: fija entorno (puerto, DB por usuario) y lanza server.js.
+# Lo lanza la shell Electron; SIN scripts .vbs (Kaspersky/Defender los
+# eliminan al extraerlos). Registra errores en error.log para diagnostico. ----
 cat > "${PAYLOAD}/app/arranque.cjs" <<CJS
-// DMVoiceChanger Web - arranque del servidor local.
+// DMVoiceChanger Web - arranque del servidor local (lo lanza la shell Electron).
 // La base de datos vive FUERA de la instalacion (sobrevive a updates):
-// %LOCALAPPDATA%\\DMVoiceWeb\\voces.db (se copia de la plantilla al primer uso).
+// %LOCALAPPDATA%\DMVoiceWeb\voces.db (se copia de la plantilla al primer uso).
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -121,6 +136,14 @@ const AQUI = __dirname;
 const base = process.env.LOCALAPPDATA || process.env.USERPROFILE || os.homedir();
 const datos = path.join(base, 'DMVoiceWeb');
 fs.mkdirSync(datos, { recursive: true });
+
+function registrarError(e) {
+  try {
+    fs.appendFileSync(path.join(datos, 'error.log'),
+      new Date().toISOString() + '  ' + ((e && e.stack) ? e.stack : String(e)) + '\n');
+  } catch (_) {}
+}
+process.on('uncaughtException', registrarError);
 
 const db = path.join(datos, 'voces.db');
 if (!fs.existsSync(db) && fs.existsSync(path.join(AQUI, 'plantilla.db'))) {
@@ -133,53 +156,59 @@ process.env.HOSTNAME = '127.0.0.1';   // SOLO local: nunca expuesto a la red
 process.env.DATABASE_URL = 'file:' + db.replace(/\\\\/g, '/');
 
 process.chdir(AQUI);
-require('./server.js');
+try {
+  require('./server.js');
+} catch (e) {
+  registrarError(e);
+  process.exitCode = 1;
+  throw e;
+}
 CJS
 
-# ---- arrancar.vbs: sin consola. Levanta node oculto (si no está ya) y abre el navegador ----
-cat > "${PAYLOAD}/arrancar.vbs" <<'VBS'
-' DMVoiceChanger Web - arranque silencioso del servidor local + navegador
-Option Explicit
-Dim sh, raiz, intentos
-Set sh = CreateObject("WScript.Shell")
-raiz = Left(WScript.ScriptFullName, InStrRev(WScript.ScriptFullName, "\") - 1)
-
-Function Listo()
-  On Error Resume Next
-  Dim http
-  Set http = CreateObject("MSXML2.XMLHTTP")
-  http.Open "GET", "http://127.0.0.1:3987/", False
-  http.Send ""
-  Listo = (http.Status = 200)
-End Function
-
-If Not Listo() Then
-  sh.Run """" & raiz & "\runtime\node.exe"" """ & raiz & "\app\arranque.cjs""", 0, False
-  intentos = 0
-  Do While Not Listo() And intentos < 120
-    WScript.Sleep 250
-    intentos = intentos + 1
-  Loop
-End If
-sh.Run "http://127.0.0.1:3987/"
-VBS
-
-# ---- detener: cierra SOLO el node de DMVoiceChangerWeb (por línea de comando) ----
+# ---- detener: cierra SOLO los procesos de DMVoiceChangerWeb (node + shell) ----
 cat > "${PAYLOAD}/detener.ps1" <<'PS1'
 # Detiene el servidor local de DMVoiceChanger Web (y solo el suyo)
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
   Where-Object { $_.CommandLine -like '*DMVoiceChangerWeb*arranque.cjs*' } |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+Get-Process -Name 'DMVoiceChangerWeb' -ErrorAction SilentlyContinue |
+  Stop-Process -Force
+Add-Type -AssemblyName PresentationFramework
+[System.Windows.MessageBox]::Show('Servidor de DMVoiceChanger Web detenido.', 'DMVoiceChanger Web', 'OK', 'Information') | Out-Null
 PS1
-cat > "${PAYLOAD}/detener.vbs" <<'VBS'
-' DMVoiceChanger Web - detencion del servidor (oculto) con confirmacion
-Option Explicit
-Dim sh, raiz
-Set sh = CreateObject("WScript.Shell")
-raiz = Left(WScript.ScriptFullName, InStrRev(WScript.ScriptFullName, "\") - 1)
-sh.Run "powershell -NoProfile -ExecutionPolicy Bypass -File """ & raiz & "\detener.ps1""", 0, True
-MsgBox "Servidor de DMVoiceChanger Web detenido.", 64, "DMVoiceChanger Web"
-VBS
+
+# ---- shell Electron + LEEME ----
+mkdir -p "${PAYLOAD}/shell"
+cp "${AQUI}/electron/main.js" "${AQUI}/electron/package.json" "${PAYLOAD}/shell/"
+cp "${AQUI}/electron/cargando.html" "${AQUI}/electron/error.html" "${PAYLOAD}/shell/"
+cat > "${PAYLOAD}/LEEME.txt" <<'LEEME'
+DMVoiceChanger Web — La Forja de Voces
+======================================
+
+Este programa es la app web completa convertida en aplicacion de escritorio:
+la ventana que abre es SUYA (Electron), sin navegador, sin pestañas, sin
+barra de direcciones.
+
+Que hay aqui:
+  - electron\DMVoiceChangerWeb.exe   La shell de escritorio (la que abre el atajo)
+  - runtime\node.exe                 Node.js portable (no instala nada en el sistema)
+  - app\                             La aplicacion compilada (servidor local)
+  - DMVoiceWeb-Depuracion.bat        Consola visible del servidor (para ver errores)
+  - detener.ps1                      Cierra el servidor si quedara colgado
+
+El servidor escucha SOLO en http://127.0.0.1:3987 — nunca queda expuesto a
+la red. Al cerrar la ventana, el servidor se apaga.
+
+Si la ventana muestra "La forja no encendio":
+  1) Ejecuta DMVoiceWeb-Depuracion.bat y lee el error (pegalo si pides ayuda).
+  2) Mira si hay detalle en %LOCALAPPDATA%\DMVoiceWeb\error.log
+  3) Si tu antivirus elimina archivos de esta carpeta, revisa su cuarentena
+     y anade una exclusion para ella.
+
+Tus voces y favoritos viven en %LOCALAPPDATA%\DMVoiceWeb\voces.db
+(sobreviven a desinstalar/actualizar) y en el almacenamiento de la propia
+aplicacion.
+LEEME
 
 # ---- depuracion: consola visible con pausa (para pegar errores) ----
 cat > "${PAYLOAD}/DMVoiceWeb-Depuracion.bat" <<'BAT'
@@ -201,11 +230,17 @@ test -f "${PAYLOAD}/runtime/node.exe"       || { echo "FALTA runtime\\node.exe";
 test -f "${PAYLOAD}/app/server.js"          || { echo "FALTA app\\server.js"; exit 1; }
 test -f "${PAYLOAD}/app/arranque.cjs"       || { echo "FALTA app\\arranque.cjs"; exit 1; }
 test -f "${PAYLOAD}/app/plantilla.db"       || { echo "FALTA app\\plantilla.db"; exit 1; }
-test -f "${PAYLOAD}/arrancar.vbs"           || { echo "FALTA arrancar.vbs"; exit 1; }
-test -f "${PAYLOAD}/detener.vbs"            || { echo "FALTA detener.vbs"; exit 1; }
+test -f "${PAYLOAD}/electron/DMVoiceChangerWeb.exe"   || { echo "FALTA electron\\DMVoiceChangerWeb.exe"; exit 1; }
+test -f "${PAYLOAD}/electron/resources/default_app.asar" || { echo "FALTA electron resources"; exit 1; }
+test -f "${PAYLOAD}/shell/main.js"                    || { echo "FALTA shell\\main.js"; exit 1; }
+test -f "${PAYLOAD}/shell/package.json"               || { echo "FALTA shell\\package.json"; exit 1; }
+test -f "${PAYLOAD}/shell/cargando.html"              || { echo "FALTA shell\\cargando.html"; exit 1; }
+test -f "${PAYLOAD}/shell/error.html"                 || { echo "FALTA shell\\error.html"; exit 1; }
+test -f "${PAYLOAD}/LEEME.txt"                        || { echo "FALTA LEEME.txt"; exit 1; }
 test -f "${PAYLOAD}/detener.ps1"            || { echo "FALTA detener.ps1"; exit 1; }
 test -f "${PAYLOAD}/DMVoiceWeb-Depuracion.bat" || { echo "FALTA DMVoiceWeb-Depuracion.bat"; exit 1; }
 head -c 2 "${PAYLOAD}/runtime/node.exe" | grep -q "MZ" || { echo "node.exe no es un PE valido"; exit 1; }
+head -c 2 "${PAYLOAD}/electron/DMVoiceChangerWeb.exe" | grep -q "MZ" || { echo "DMVoiceChangerWeb.exe (electron) no es un PE valido"; exit 1; }
 echo "    Payload OK."
 
 echo "[7/8] Smoke test: arrancar el servidor standalone en Linux..."
@@ -257,8 +292,8 @@ reales="$(find "${PAYLOAD}" -type f | wc -l)"
 echo "    Archivos que extraera el instalador: ${empaquetados} / esperados: ${reales}"
 [ "${empaquetados}" -eq "${reales}" ] \
   || { echo "MISMATCH de conteo (¿dotfiles perdidos por el globbing?)"; grep '^File: "' makensis.log | head -10; exit 1; }
-for clave in arrancar.vbs detener.vbs detener.ps1 DMVoiceWeb-Depuracion.bat \
-             node.exe arranque.cjs server.js plantilla.db DMVoiceChanger.ico; do
+for clave in LEEME.txt detener.ps1 DMVoiceWeb-Depuracion.bat node.exe \
+             DMVoiceChangerWeb.exe main.js arranque.cjs server.js plantilla.db DMVoiceChanger.ico; do
   grep -qF "\"${clave}\"" makensis.log \
     || { echo "FALTA en el instalador: ${clave}"; exit 1; }
 done
@@ -268,6 +303,8 @@ descensos="$(grep -c 'Descending to: "payload/app/.next/' makensis.log || true)"
 echo "    Contenido verificado: los ${empaquetados} archivos llegan al .exe (.next: ${descensos} subcarpetas)."
 
 mkdir -p "${RAIZ_REPO}/download"
-mv "${TRABAJO}/DMVoiceChangerWeb.exe" "${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"
-ls -la "${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"
-echo "Listo: ${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"
+rm -f "${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"   # viejo sin version: fuera
+mv "${TRABAJO}"'/DMVoiceChangerWeb-'*.exe "${RAIZ_REPO}/download/"
+ls -la "${RAIZ_REPO}"'/download/DMVoiceChangerWeb-'*.exe
+NOMBRE_EXE=$(cd "${RAIZ_REPO}/download" && ls DMVoiceChangerWeb-*.exe | head -1)
+echo "Listo: ${RAIZ_REPO}/download/${NOMBRE_EXE}"
