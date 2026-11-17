@@ -76,3 +76,6 @@ server.log
 /download/DMVoiceChanger.exe
 /voz_dnd/packaging-windows/_build/
 /voz_dnd/packaging-windows/wheels/
+# Instalador WEB (binario grande; se distribuye aparte, NO a git)
+/download/DMVoiceChangerWeb.exe
+/packaging-web/_build/

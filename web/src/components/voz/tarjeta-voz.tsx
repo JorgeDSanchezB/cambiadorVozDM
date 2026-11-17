@@ -1,0 +1,145 @@
+// Tarjeta de voz — icono, color y atajo vienen del DATO (catálogo espejo).
+// Voces personalizadas: borrado permanente (con deshacer). Voces base:
+// se quitan de la lista (restaurables en Ajustes) sin tocar el catálogo.
+
+'use client'
+
+import { EyeOff, Loader2, Play, Trash2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import type { Voz } from '@/lib/tipos'
+
+interface Props {
+  voz: Voz
+  activa: boolean
+  probando: boolean
+  onSeleccionar: () => void
+  onProbar: () => void
+  onBorrar?: () => void
+  onOcultar?: () => void
+}
+
+export function TarjetaVoz({ voz, activa, probando, onSeleccionar, onProbar, onBorrar, onOcultar }: Props) {
+  return (
+    <Card
+      role="button"
+      tabIndex={0}
+      aria-pressed={activa}
+      onClick={onSeleccionar}
+      onKeyDown={(e) => {
+        // Solo activa la selección si el foco está en la propia tarjeta:
+        // los botones internos (probar, ocultar…) deben responder a su
+        // activación nativa con teclado, sin secuestro del keydown.
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSeleccionar()
+        }
+      }}
+      className={cn(
+        'group relative cursor-pointer gap-0 overflow-hidden border-border/60 bg-card/60 p-3.5 backdrop-blur-sm',
+        'transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/80 hover:shadow-lg hover:shadow-black/30',
+        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-0 active:scale-[0.98]',
+        activa && 'border-primary/60 bg-gradient-to-br from-accent/50 via-card/80 to-card/80 shadow-lg shadow-primary/10',
+      )}
+    >
+      {/* Línea de luz superior: ámbar si está activa, del color de la voz si no. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'absolute inset-x-3 top-0 h-px',
+          activa ? 'destello-linea bg-gradient-to-r from-transparent via-primary/70 to-transparent' : 'bg-gradient-to-r from-transparent to-transparent',
+        )}
+        style={activa ? undefined : { background: `linear-gradient(90deg, transparent, ${voz.color}66, transparent)` }}
+      />
+
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden="true"
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-xl leading-none select-none transition-transform duration-200 group-hover:scale-110"
+          style={{
+            backgroundColor: `${voz.color}1f`,
+            boxShadow: `inset 0 0 0 1px ${voz.color}3d`,
+          }}
+        >
+          {voz.icono}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {voz.nombre}
+            {activa && <span className="sr-only">(voz activa)</span>}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {voz.atajo && (
+              <kbd className="rounded border border-border/70 bg-muted/60 px-1.5 py-px font-mono text-[10px] text-muted-foreground">
+                {voz.atajo}
+              </kbd>
+            )}
+            {voz.tipo === 'IA' && (
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                IA · degrada a DSP
+              </Badge>
+            )}
+            {voz.personalizada && (
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                Personal
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-9 text-muted-foreground hover:text-foreground"
+            disabled={probando}
+            onClick={(e) => {
+              e.stopPropagation()
+              onProbar()
+            }}
+            title={`Escuchar una frase con la voz ${voz.nombre}`}
+            aria-label={`Probar la voz ${voz.nombre}`}
+          >
+            {probando ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+          </Button>
+          {voz.personalizada && onBorrar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-9 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                onBorrar()
+              }}
+              title="Eliminar voz personalizada"
+              aria-label={`Eliminar la voz ${voz.nombre}`}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          )}
+          {!voz.personalizada && onOcultar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-9 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOcultar()
+              }}
+              title={voz.nombre === 'Neutral' ? 'La voz Neutral no se puede quitar' : 'Quitar voz de la lista (restaurable en Ajustes)'}
+              aria-label={
+                voz.nombre === 'Neutral'
+                  ? `La voz ${voz.nombre} no se puede quitar`
+                  : `Quitar la voz ${voz.nombre} de la lista`
+              }
+            >
+              <EyeOff className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </Card>
+  )
+}

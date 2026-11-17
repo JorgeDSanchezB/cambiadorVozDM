@@ -1,0 +1,242 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-cinzel);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/*
+  La Forja del DJ — sistema visual de la consola.
+  Carbón cálido, ámbar de antorcha y oro viejo. Sin azules ni índigos.
+*/
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.155 0.014 55);
+  --foreground: oklch(0.93 0.015 80);
+  --card: oklch(0.205 0.018 55);
+  --card-foreground: oklch(0.93 0.015 80);
+  --popover: oklch(0.225 0.02 55);
+  --popover-foreground: oklch(0.93 0.015 80);
+  --primary: oklch(0.76 0.16 72);
+  --primary-foreground: oklch(0.19 0.03 55);
+  --secondary: oklch(0.27 0.022 58);
+  --secondary-foreground: oklch(0.88 0.02 78);
+  --muted: oklch(0.26 0.02 58);
+  --muted-foreground: oklch(0.72 0.025 72);
+  --accent: oklch(0.31 0.05 65);
+  --accent-foreground: oklch(0.94 0.03 80);
+  --destructive: oklch(0.63 0.21 27);
+  --border: oklch(0.33 0.025 60);
+  --input: oklch(0.3 0.025 58);
+  --ring: oklch(0.76 0.16 72);
+  --chart-1: oklch(0.72 0.16 70);
+  --chart-2: oklch(0.62 0.18 30);
+  --chart-3: oklch(0.68 0.14 95);
+  --chart-4: oklch(0.55 0.12 145);
+  --chart-5: oklch(0.5 0.1 55);
+  --sidebar: oklch(0.205 0.018 55);
+  --sidebar-foreground: oklch(0.93 0.015 80);
+  --sidebar-primary: oklch(0.76 0.16 72);
+  --sidebar-primary-foreground: oklch(0.19 0.03 55);
+  --sidebar-accent: oklch(0.27 0.022 58);
+  --sidebar-accent-foreground: oklch(0.93 0.015 80);
+  --sidebar-border: oklch(0.33 0.025 60);
+  --sidebar-ring: oklch(0.76 0.16 72);
+}
+
+.dark {
+  --background: oklch(0.155 0.014 55);
+  --foreground: oklch(0.93 0.015 80);
+  --card: oklch(0.205 0.018 55);
+  --card-foreground: oklch(0.93 0.015 80);
+  --popover: oklch(0.225 0.02 55);
+  --popover-foreground: oklch(0.93 0.015 80);
+  --primary: oklch(0.76 0.16 72);
+  --primary-foreground: oklch(0.19 0.03 55);
+  --secondary: oklch(0.27 0.022 58);
+  --secondary-foreground: oklch(0.88 0.02 78);
+  --muted: oklch(0.26 0.02 58);
+  --muted-foreground: oklch(0.72 0.025 72);
+  --accent: oklch(0.31 0.05 65);
+  --accent-foreground: oklch(0.94 0.03 80);
+  --destructive: oklch(0.63 0.21 27);
+  --border: oklch(0.33 0.025 60);
+  --input: oklch(0.3 0.025 58);
+  --ring: oklch(0.76 0.16 72);
+  --chart-1: oklch(0.72 0.16 70);
+  --chart-2: oklch(0.62 0.18 30);
+  --chart-3: oklch(0.68 0.14 95);
+  --chart-4: oklch(0.55 0.12 145);
+  --chart-5: oklch(0.5 0.1 55);
+  --sidebar: oklch(0.205 0.018 55);
+  --sidebar-foreground: oklch(0.93 0.015 80);
+  --sidebar-primary: oklch(0.76 0.16 72);
+  --sidebar-primary-foreground: oklch(0.19 0.03 55);
+  --sidebar-accent: oklch(0.27 0.022 58);
+  --sidebar-accent-foreground: oklch(0.93 0.015 80);
+  --sidebar-border: oklch(0.33 0.025 60);
+  --sidebar-ring: oklch(0.76 0.16 72);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  ::selection {
+    background: oklch(0.76 0.16 72 / 0.35);
+    color: oklch(0.97 0.01 85);
+  }
+}
+
+/* Tipografía display (Cinzel) en los títulos estructurales de la consola. */
+[data-slot="card-title"],
+[data-slot="dialog-title"],
+[data-slot="alert-title"] {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  letter-spacing: 0.015em;
+}
+
+/* ── Ecualizador decorativo ──────────────────────────────────────────────
+   Barras CSS puras: en reposo respiran lentas (eq-calma); con la clase
+   .eq-viva en el contenedor, la animación se acelera y crece. */
+@keyframes eq-viva {
+  0%,
+  100% {
+    transform: scaleY(0.22);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes eq-calma {
+  0%,
+  100% {
+    transform: scaleY(0.12);
+  }
+  50% {
+    transform: scaleY(0.3);
+  }
+}
+.barra-eq {
+  height: 100%;
+  transform-origin: bottom;
+  animation: eq-calma 2.6s ease-in-out infinite;
+}
+.eq-viva .barra-eq {
+  animation-name: eq-viva;
+  animation-duration: 1.15s;
+}
+
+/* ── Resplandor de antorchas (fondo de escena) ─────────────────────────── */
+@keyframes parpadeo-antorcha {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
+.llama-antorcha {
+  animation: parpadeo-antorcha 5.5s ease-in-out infinite;
+}
+.llama-antorcha-2 {
+  animation: parpadeo-antorcha 7.5s ease-in-out 1.4s infinite;
+}
+
+/* ── Grano de película ─────────────────────────────────────────────────── */
+.grano {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+  background-size: 160px 160px;
+}
+
+/* ── Aparición de línea de luz en tarjetas ─────────────────────────────── */
+@keyframes destello-linea {
+  from {
+    opacity: 0;
+    transform: translateX(-30%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.destello-linea {
+  animation: destello-linea 0.5s ease-out both;
+}
+
+/* Scrollbar discreto para las listas largas (voces, personajes). */
+.rol-custom {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.45 0.04 65) transparent;
+}
+.rol-custom::-webkit-scrollbar {
+  width: 8px;
+}
+.rol-custom::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rol-custom::-webkit-scrollbar-thumb {
+  background: oklch(0.45 0.04 65);
+  border-radius: 9999px;
+}
+.rol-custom::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.76 0.16 72);
+}
+
+/* Movimiento reducido: quietud elegante en lugar de animación. */
+@media (prefers-reduced-motion: reduce) {
+  .barra-eq,
+  .llama-antorcha,
+  .llama-antorcha-2,
+  .destello-linea {
+    animation: none;
+  }
+  .barra-eq {
+    transform: scaleY(0.18);
+  }
+}
