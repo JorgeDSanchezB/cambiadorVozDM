@@ -9,7 +9,7 @@ grabación) y la de mejor aspecto.
 
 ## Qué produce
 
-`download/DMVoiceChangerWeb.exe` — instalador NSIS (v1.0.0, ~54 MB comprimido,
+`download/DMVoiceChangerWeb.exe` — instalador NSIS (v1.0.1, ~54 MB comprimido,
 ~257 MB instalado) con:
 
 - **Node.js 22.14 portable** (`runtime\node.exe`) — no instala nada en el sistema.
@@ -109,6 +109,23 @@ ver README de `voz_dnd/packaging-windows/`). El script:
 - **Prisma**: `binaryTargets = ["native", "windows"]` en el generator y
   verificar tras el build que `query_engine-windows.dll.node` está dentro del
   standalone (Next lo traza bien, pero se comprueba por si acaso).
+
+## Cambios v1.0.1 (2026-11-17)
+
+- **v1.0.0 se entregó roto**: el exe publicado era de un build ANTERIOR a la
+  corrección de los lanzadores (16:05 vs scripts de 16:08) — al abrir daba
+  «No se encuentra el archivo de comandos …\arrancar.vbs». El build del exe
+  debe ejecutarse SIEMPRE después de editar los scripts; ahora el propio
+  script verifica el CONTENIDO real del instalador (log de makensis con -V4:
+  conteo exacto de archivos empaquetados vs payload + claves obligatorias +
+  subcarpetas de .next) y aborta si algo falta.
+- **makensis -V4 obligatorio**: sin verbosidad 4 el log NO lista los
+  `File: "…"` y la verificación no tiene nada que contar.
+- **rsync -aL al armar el payload**: el standalone trae un symlink de bun
+  (`.next/node_modules/@prisma/client-<hash>` → `node_modules/@prisma/client`);
+  makensis lo sigue y empaqueta su árbol (60 archivos) como reales — el
+  payload ahora se desreferencia para que el conteo cuadre y el árbol
+  instalado sea 100 % archivos reales (Windows no tiene symlinks).
 
 ## Verificación pendiente del usuario (Windows real)
 

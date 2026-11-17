@@ -99,7 +99,12 @@ fi
 test -x node-linux/bin/node
 
 echo "[6/8] Ensamblando el payload del instalador..."
-rsync -a "${APP_SRC}/.next/standalone/" "${PAYLOAD}/app/"
+# -L (desreferenciar): el standalone trae symlinks de bun (p. ej.
+# .next/node_modules/@prisma/client-<hash> -> node_modules/@prisma/client);
+# makensis los sigue y empaqueta su arbol como archivos reales, asi que el
+# payload debe ser 100% archivos reales para que el conteo de verificacion
+# cuadre y porque Windows no tiene symlinks.
+rsync -aL "${APP_SRC}/.next/standalone/" "${PAYLOAD}/app/"
 cp "${TRABAJO}/plantilla/plantilla.db" "${PAYLOAD}/app/plantilla.db"
 cp "${ICO}" "${PAYLOAD}/DMVoiceChanger.ico"
 
@@ -231,13 +236,38 @@ echo "    DB de usuario creada en LOCALAPPDATA simulado."
 kill ${SMOKE_PID} 2>/dev/null || true
 trap - EXIT
 
-echo "[8/8] Compilando el instalador NSIS..."
+echo "[8/8] Compilando el instalador NSIS (y verificando su CONTENIDO real)..."
 cp "${AQUI}/instalador-web.nsi" "${TRABAJO}/"
 cp "${ICO}" "${TRABAJO}/"
 cd "${TRABAJO}"
 export NSISDIR="${NSISDIR:-/home/z/nsis/NSIS}"
-PATH="/home/z/nsis/bin:${PATH}" makensis instalador-web.nsi
+# -V4 es OBLIGATORIO: el log lista 'File: "nombre" [compress] ...' por cada
+# archivo que el instalador extraera (sin -V4 el log no los imprime y la
+# verificacion de abajo no tiene nada que contar).
+PATH="/home/z/nsis/bin:${PATH}" makensis -V4 instalador-web.nsi > makensis.log 2>&1 \
+  || { tail -30 makensis.log; echo "makensis FALLO"; exit 1; }
+
+# Leccion v1.0.1: se entrego un exe OBSOLETO sin arrancar.vbs (build de las
+# 16:05 con scripts anteriores a la correccion de las 16:08). El log de
+# makensis lista CADA archivo que el instalador extraera (formato
+# 'File: "nombre" [compress] a/b bytes'), asi que se comprueba AQUI y no en
+# el PC del usuario.
+empaquetados="$(grep -c '^File: "' makensis.log || true)"
+reales="$(find "${PAYLOAD}" -type f | wc -l)"
+echo "    Archivos que extraera el instalador: ${empaquetados} / esperados: ${reales}"
+[ "${empaquetados}" -eq "${reales}" ] \
+  || { echo "MISMATCH de conteo (¿dotfiles perdidos por el globbing?)"; grep '^File: "' makensis.log | head -10; exit 1; }
+for clave in arrancar.vbs detener.vbs detener.ps1 DMVoiceWeb-Depuracion.bat \
+             node.exe arranque.cjs server.js plantilla.db DMVoiceChanger.ico; do
+  grep -qF "\"${clave}\"" makensis.log \
+    || { echo "FALTA en el instalador: ${clave}"; exit 1; }
+done
+descensos="$(grep -c 'Descending to: "payload/app/.next/' makensis.log || true)"
+[ "${descensos}" -ge 5 ] \
+  || { echo "El instalador NO incluye .next (descensos: ${descensos})"; exit 1; }
+echo "    Contenido verificado: los ${empaquetados} archivos llegan al .exe (.next: ${descensos} subcarpetas)."
 
 mkdir -p "${RAIZ_REPO}/download"
 mv "${TRABAJO}/DMVoiceChangerWeb.exe" "${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"
+ls -la "${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"
 echo "Listo: ${RAIZ_REPO}/download/DMVoiceChangerWeb.exe"
