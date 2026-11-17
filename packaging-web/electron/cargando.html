@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>DMVoiceChanger Web — La Forja de Voces</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1e150f; color: #f3e9dc;
+    font-family: Georgia, 'Times New Roman', serif; user-select: none; }
+  body { display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 18px; }
+  .anillo { width: 44px; height: 44px; border-radius: 50%;
+    border: 3px solid #5a4433; border-top-color: #d9a45b;
+    animation: girar 0.9s linear infinite; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  h1 { font-size: 20px; font-weight: 500; letter-spacing: 1px; margin: 0; }
+  p { font-size: 13px; opacity: 0.65; margin: 0; }
+</style>
+</head>
+<body>
+  <div class="anillo"></div>
+  <h1>La Forja de Voces</h1>
+  <p>Encendiendo la forja&hellip;</p>
+</body>
+</html>

@@ -1,12 +1,15 @@
 Here are all the generated files.
 
-## DMVoiceChangerWeb.exe (2026-11-17, v1.0.1) — EL INSTALADOR OFICIAL
+## DMVoiceChangerWeb-1.0.2.exe (2026-11-17) — EL INSTALADOR OFICIAL
 
 **La app web (La Forja de Voces) convertida en programa de Windows.**
-~54 MB descargados, ~257 MB instalados. v1.0.1 corrige el
-«No se encuentra …\arrancar.vbs» de la v1.0.0 (exe obsoleto sin los
-lanzadores): reinstala ENCIMA de la v1.0.0 sin desinstalar y abre
-el atajo «DMVoiceChanger Web»:
+~140 MB descargados, ~500 MB instalados. **Aplicación de escritorio REAL**:
+se abre en SU PROPIA ventana (Electron) — sin navegador, sin pestañas, sin
+barra de direcciones, con su icono en la barra de tareas. Al cerrar la
+ventana, el servidor se apaga. Causa de las versiones «rotas» v1.0.0 y
+v1.0.1 descubierta: el ANTIVIRUS (Kaspersky/Defender) borraba los scripts
+.vbs al extraerlos → ya no hay ningún .vbs y el instalador avisa si algo
+es eliminado. Desinstala la versión anterior antes de instalar esta.
 
 - **Tiene TODO lo de la web**: las 17 voces de personajes con iconos y
   colores, editor DSP completo, pestaña Leer con favoritos + cola de

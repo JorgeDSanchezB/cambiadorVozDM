@@ -1,0 +1,6 @@
+{
+  "name": "dmvoice-web-shell",
+  "version": "1.0.2",
+  "description": "Shell de escritorio de DMVoiceChanger Web (La Forja de Voces)",
+  "main": "main.js"
+}
