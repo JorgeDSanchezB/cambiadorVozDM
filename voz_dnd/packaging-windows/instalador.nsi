@@ -10,8 +10,8 @@ Unicode true
 
 !define PRODUCTO       "DMVoiceChanger"
 !define PRODUCTO_LARGO "DMVoiceChanger - Cambiador de voz para DM de D&D"
-!define VERSION        "1.1.2"
-!define VI_VERSION     "1.1.2.0"
+!define VERSION        "1.1.3"
+!define VI_VERSION     "1.1.3.0"
 !define EDITOR         "La Forja del DJ"
 !define URL_AYUDA      "https://github.com/JorgeDSanchezB/cambiadorVozDM"
 !define CLAVE_DESINST  "Software\Microsoft\Windows\CurrentVersion\Uninstall\DMVoiceChanger"

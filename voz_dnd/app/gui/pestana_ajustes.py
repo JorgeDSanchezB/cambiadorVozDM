@@ -188,7 +188,6 @@ class PestanaAjustes(QWidget):
         # vía ONNX sin salir de la app (hilo de fondo, nunca bloquea la GUI).
         self.etiqueta_motores = QLabel("")
         self.etiqueta_motores.setWordWrap(True)
-        self._refrescar_motores()
         form_ia.addRow("Motores:", self.etiqueta_motores)
         self.boton_ia_instalar = QPushButton("⬇️ Instalar vía ONNX (CPU)")
         self.boton_ia_instalar.setToolTip(
@@ -196,6 +195,11 @@ class PestanaAjustes(QWidget):
             "modo IA funciona en cualquier PC; sin ello degrada a DSP.")
         self.boton_ia_instalar.clicked.connect(self._instalar_ia_onnx)
         form_ia.addRow("", self.boton_ia_instalar)
+        # IMPORTANTE: refrescar DESPUÉS de crear etiqueta y botón — antes se
+        # llamaba antes de crear boton_ia_instalar → AttributeError al
+        # arrancar y la ventana entera moría (fallo del instalador v1.1.x:
+        # la app no abría y el diálogo solo decía «Revisa logs/app.log»).
+        self._refrescar_motores()
         raiz.addWidget(grupo_ia)
 
         # ----------------- Clonación (preparación) ----------------- #
@@ -353,8 +357,11 @@ class PestanaAjustes(QWidget):
     def _refrescar_motores(self) -> None:
         """Relee el estado real de las piezas del modo IA y lo muestra."""
         self.etiqueta_motores.setText(self._texto_motores())
-        estado = estado_motores()
-        self.boton_ia_instalar.setVisible(not estado["ia_lista"])
+        # Cinturón y tirantes: si algún día se vuelve a llamar antes de
+        # construir la UI, no debe poder tumbar el arranque de la app.
+        boton = getattr(self, "boton_ia_instalar", None)
+        if boton is not None:
+            boton.setVisible(not estado_motores()["ia_lista"])
 
     def _instalar_ia_onnx(self) -> None:
         """Lanza pip install de la vía ONNX en un hilo de fondo.

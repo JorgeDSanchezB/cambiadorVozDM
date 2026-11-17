@@ -6,7 +6,7 @@ administrador en el equipo destino.
 
 ## Qué produce
 
-`download/DMVoiceChanger.exe` — instalador NSIS (v1.1.2, ~101 MB) con:
+`download/DMVoiceChanger.exe` — instalador NSIS (v1.1.3, ~101 MB) con:
 
 - **Runtime Python 3.14 embebido** (no toca el Python del sistema, no hay
   venv).
@@ -27,10 +27,9 @@ administrador en el equipo destino.
   `DMVoiceChanger-Depuracion.bat` para ver la consola de errores.
 - **Desinstalador** real, registrado en «Aplicaciones instaladas» (HKCU).
 
-## Arreglo de arranque (v1.1.1 + v1.1.2): «doble clic y nada pasa»
+## Arreglo de arranque (v1.1.1 → v1.1.3): «doble clic y nada pasa»
 
-Había DOS fallos en cadena, ambos silenciosos porque `pythonw` no tiene
-consola:
+Había TRES fallos en cadena, todos silenciosos o crípticos:
 
 1. **v1.1.0** — el `python314._pth` del runtime embebido activa el
    **modo aislado**: la carpeta del script NO se añade a `sys.path`. Con el
@@ -41,8 +40,14 @@ consola:
    Windows buscaba `app\lanzar_app.py` (no existe; el lanzador está en
    `runtime\`) y pythonw moría ANTES de crear `arranque.log` → de nuevo
    «nada pasa» y ni rastro del log.
+3. **v1.1.2** — el atajo por fin ejecutaba el lanzador (el usuario lo
+   confirmó con el traceback en `arranque.log`), pero el código de la app
+   tenía SU crash de arranque: `PestanaAjustes.__init__` llamaba
+   `_refrescar_motores()` antes de crear `boton_ia_instalar` →
+   `AttributeError` y la ventana moría con el diálogo «Revisa
+   logs/app.log». Fix: refrescar tras crear el botón + guard `getattr`.
 
-Capas de protección actuales (v1.1.2):
+Capas de protección actuales (v1.1.3):
 
 1. El `._pth` incluye `..\app` (relativa al propio `._pth` → `INSTDIR\app`).
 2. Los atajos y la página final ejecutan el lanzador con **RUTA ABSOLUTA**
@@ -58,10 +63,17 @@ Capas de protección actuales (v1.1.2):
 5. El script de construcción verifica con `test` los archivos clave del
    payload (pythonw.exe, lanzar_app.py, app\main.py, PyQt6, pip, LEEME…)
    antes de invocar makensis.
+6. **Verificación de GUI real**: `prueba_arranque_offscreen.py` construye
+   la ventana principal completa con PyQt6 en Linux (QT_QPA_PLATFORM=
+   offscreen, `LD_LIBRARY_PATH` apuntando a un `libEGL.so.1`, p. ej. el
+   del chromium de Playwright). Captó el crash de `boton_ia_instalar`
+   antes de compilar la v1.1.3: «VENTANA OK — construcción de UI completa
+   sin errores». Ejecútalo tras cualquier cambio en `app/gui/`.
 
 Verificado en Linux con una réplica de la estructura instalada: import OK,
 salida limpia registrada y traceback completo en `arranque.log` cuando el
-fallo es de import.
+fallo es de import. La v1.1.3 añade la construcción real de la ventana
+(offscreen) al saco de verificaciones.
 
 ## Notas honestas
 

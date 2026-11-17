@@ -1,6 +1,6 @@
 Here are all the generated files.
 
-## DMVoiceChanger.exe (2026-11-16, v1.1.2)
+## DMVoiceChanger.exe (2026-11-17, v1.1.3)
 
 Instalador de Windows para la app de escritorio (`voz_dnd/` del repo
 cambiadorVozDM), ~101 MB:
@@ -14,6 +14,13 @@ cambiadorVozDM), ~101 MB:
 - **v1.1.0** (funciones de VoiceStudio): gestor de motores IA en Ajustes
   (botón «Instalar vía ONNX (CPU)» con el pip incluido), packs de voces
   export/import ZIP y fundación de clonación de voz con consentimiento.
+- **v1.1.3** (crash de la pestaña Ajustes): la v1.1.2 abría el lanzador y
+  llegaba a construir la ventana, pero `PestanaAjustes` llamaba
+  `_refrescar_motores()` ANTES de crear `boton_ia_instalar` →
+  `AttributeError` al arrancar y la ventana entera moría (se veía el
+  diálogo «Revisa logs/app.log»). Refresco movido después de crear el
+  botón + guard `getattr`. Verificado construyendo la ventana real con
+  PyQt6 en modo offscreen: «VENTANA OK — construcción de UI completa».
 - **v1.1.2** (el atajo por fin funciona): la v1.1.1 pasaba al atajo el
   parámetro relativo `lanzar_app.py` con «Iniciar en: app\», así que
   Windows buscaba `app\lanzar_app.py` (no existe) y pythonw moría en
