@@ -18,9 +18,6 @@ export const metadata: Metadata = {
   description:
     "Consola de voz para el Dungeon Master: voces DSP en tiempo real, editor de parámetros, lectura de textos y un elenco latino de personajes (FakeYou) para dar voz a tus PNJs. Versión web, espejo de voz_dnd.",
   keywords: ["D&D", "cambiador de voz", "DM", "DSP", "tiempo real", "TTS", "FakeYou", "PNJ"],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
 };
 
 export const viewport: Viewport = {
