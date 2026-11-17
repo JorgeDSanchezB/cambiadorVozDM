@@ -137,3 +137,24 @@ grupo «🎒 Packs de voces» en Ajustes. `app/engine/packs.py` (solo stdlib):
   política conservadora). La UI lo dice en ambas plataformas. No unificar
   formatos sin petición explícita del usuario.
 - Tests: `tests/test_packs.py` (6 casos headless con gestores reales).
+
+## DECISIÓN DE PRODUCTO (2026-11-17): el escritorio ES la web
+
+El usuario descartó la app PyQt (`voz_dnd/`) como entregable tras verla
+junto a la web («la disparidad es ridícula»): nunca alcanzó la paridad y
+la web es la versión completa y la mejor. A partir de ahora:
+
+- **El instalador oficial de Windows se construye desde `web/`**:
+  `packaging-web/` → `download/DMVoiceChangerWeb.exe` (Node portable +
+  Next standalone + plantilla Prisma + lanzadores VBS; se abre en el
+  navegador en 127.0.0.1:3987). Ver su README para el diseño completo.
+- `voz_dnd/` queda como LEGADO: ya no recibe funciones nuevas. Su
+  instalador (`voz_dnd/packaging-windows/`) se mantiene solo por si se
+  pide expresamente.
+- **Forja heurística** (`web/src/lib/forja-heuristica.ts`): red de
+  seguridad de la forja por descripción cuando el LLM no responde (caída
+  o app instalada fuera del sandbox). Palabras clave → parámetros
+  SIEMPRE acotados al catálogo; el cliente avisa con un toast
+  «Propuesta heurística (sin IA)». No borrarla: es la que hace que la
+  forja funcione en el .exe instalado.
+- Exe JAMÁS a git (`.gitignore`: `/download/*.exe` de ambos instaladores).

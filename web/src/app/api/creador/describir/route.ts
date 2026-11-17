@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import CATALOGO from '@/data/parametros.json'
+import { forjarHeuristica } from '@/lib/forja-heuristica'
 import type { ClaveParametro, DefParametro, ParametrosDSP } from '@/lib/tipos'
 
 const MAX_DESCRIPCION = 600
@@ -93,6 +94,18 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Red de seguridad: si la IA falla (caída, sin red, o la app instalada
+  // en un PC sin acceso al servicio), la FORJA HEURÍSTICA propone una voz
+  // con reglas de oficio — mejor que un error seco. El cliente recibe
+  // `heuristica: true` para avisar de que la propuesta no es de la IA.
+  const responderHeuristica = (motivo: string) => {
+    const voz = forjarHeuristica(descripcion)
+    if (!voz) {
+      return NextResponse.json({ ok: false, mensaje: motivo }, { status: 503 })
+    }
+    return NextResponse.json({ ok: true, heuristica: true, mensaje: motivo, voz })
+  }
+
   try {
     const ZAI = (await import('z-ai-web-dev-sdk')).default
     const zai = await ZAI.create()
@@ -112,18 +125,12 @@ export async function POST(req: NextRequest) {
     try {
       bruto = JSON.parse(limpiarCercado(texto)) as Record<string, unknown>
     } catch {
-      return NextResponse.json(
-        { ok: false, mensaje: 'La IA respondió en un formato inesperado. Inténtalo de nuevo.' },
-        { status: 502 },
-      )
+      return responderHeuristica('La IA respondió en un formato inesperado; se usó la forja heurística.')
     }
 
     const parametros = acotarParametros(bruto.parametros_dsp)
     if (!parametros) {
-      return NextResponse.json(
-        { ok: false, mensaje: 'La IA propuso parámetros fuera del forjo. Inténtalo de nuevo.' },
-        { status: 502 },
-      )
+      return responderHeuristica('La IA propuso parámetros fuera del forjo; se usó la forja heurística.')
     }
 
     const nombre = typeof bruto.nombre === 'string' && bruto.nombre.trim()
@@ -139,9 +146,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, voz: { nombre, icono, color, resumen, parametros_dsp: parametros } })
   } catch {
-    return NextResponse.json(
-      { ok: false, mensaje: 'La forja IA no está disponible ahora mismo. Inténtalo en unos segundos.' },
-      { status: 503 },
-    )
+    return responderHeuristica('La forja IA no está disponible ahora mismo; se usó la forja heurística (reglas de oficio, sin IA).')
   }
 }

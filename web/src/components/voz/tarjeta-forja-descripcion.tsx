@@ -45,7 +45,12 @@ export function TarjetaForjaDescripcion() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ descripcion: limpia }),
       })
-      const data = (await resp.json()) as { ok?: boolean; mensaje?: string; voz?: VozForjada }
+      const data = (await resp.json()) as {
+        ok?: boolean
+        mensaje?: string
+        heuristica?: boolean
+        voz?: VozForjada
+      }
       if (!resp.ok || !data.ok || !data.voz) {
         toast.error(data.mensaje ?? 'La forja IA falló', {
           description: 'Inténtalo de nuevo en unos segundos.',
@@ -53,6 +58,12 @@ export function TarjetaForjaDescripcion() {
         return
       }
       setForjada(data.voz)
+      if (data.heuristica) {
+        // Aviso honesto: la propuesta vino de las reglas de oficio, no de la IA.
+        toast.info('Propuesta heurística (sin IA)', {
+          description: data.mensaje ?? 'La IA no estaba disponible; se usaron reglas de oficio.',
+        })
+      }
     } catch {
       toast.error('Fallo de red al hablar con la forja IA', {
         description: 'Revisa tu conexión e inténtalo de nuevo.',
